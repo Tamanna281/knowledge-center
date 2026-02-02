@@ -92,9 +92,13 @@ export default function AddUserForm({
                 required={!isNewRole}
               >
                 <option value="" disabled>-- Select a Role --</option>
-                {existingRoles.map(r => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
+                {/* --- FILTER APPLIED HERE --- */}
+                {existingRoles
+                  .filter(r => r.name.toLowerCase() !== 'admin')
+                  .map(r => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))
+                }
               </select>
             </div>
           )}
