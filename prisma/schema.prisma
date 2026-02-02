@@ -1,0 +1,57 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// === YOUR MODELS ===
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  privileges  String[] // ["VIEW_TREE", "ADD_USER", etc.]
+  users       User[]
+  
+  createdAt   DateTime @default(now())
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String   
+  
+  // Link to Role Table
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id])
+  
+  // Hierarchy
+  managerId String?
+  manager   User?    @relation("UserHierarchy", fields: [managerId], references: [id])
+  children  User[]   @relation("UserHierarchy")
+
+  createdAt DateTime @default(now())
+}
+
+// ... existing models ...
+
+// The Automated Data Table
+model Transaction {
+  id           String   @id @default(uuid()) // TransactionID
+  itemName     String
+  category     String
+  quantity     Int
+  units        String   // e.g. "kg", "pcs"
+  price        Float
+  totalCost    Float
+  purchaseDate DateTime @default(now())
+  supplier     String
+  buyer        String
+  
+  createdAt    DateTime @default(now())
+}
