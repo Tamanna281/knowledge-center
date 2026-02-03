@@ -14,7 +14,7 @@ export async function deleteUser(userId: string) {
       where: { id: userId }
     })
     
-    revalidatePath('/dashboard/hierarchy')
+    revalidatePath('/dashboard/admin')
   } catch (error) {
     console.error("Failed to delete user:", error)
   }

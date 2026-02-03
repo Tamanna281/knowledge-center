@@ -5,37 +5,55 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // === YOUR MODELS ===
 
+// OTP Table - For email and phone verification
+model Otp {
+  id        String   @id @default(uuid())
+  userId    String?
+  otp       String
+  type      String   // "EMAIL" or "PHONE"
+  expiresAt DateTime
+  
+  createdAt DateTime @default(now())
+}
+
 model Role {
   id          String   @id @default(uuid())
   name        String   @unique
-  privileges  String[] // ["VIEW_TREE", "ADD_USER", etc.]
+  privileges  String[] // Array of privileges e.g. ["VIEW_TREE", "ADD_USER"]
   users       User[]
   
   createdAt   DateTime @default(now())
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String
-  password  String   
+  id            String   @id @default(uuid())
+  username      String?  @unique  // Optional username
+  email         String   @unique
+  name          String
+  phone         String?
+  password      String   
+  emailVerified Boolean  @default(false)
+  phoneVerified Boolean  @default(false)
+  isActive      Boolean  @default(false)
   
   // Link to Role Table
   roleId    String
   role      Role     @relation(fields: [roleId], references: [id])
-  
-  // Hierarchy
+
+  // Hierarchy - Self-Relation for Manager/Subordinates
   managerId String?
   manager   User?    @relation("UserHierarchy", fields: [managerId], references: [id])
   children  User[]   @relation("UserHierarchy")
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ... existing models ...
@@ -54,4 +72,15 @@ model Transaction {
   buyer        String
   
   createdAt    DateTime @default(now())
+}
+
+model KnowledgeBase {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  category  String?
+  tags      String
+  fileName  String?  @default("Imported File")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

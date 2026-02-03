@@ -2,10 +2,10 @@
 'use client'
 
 import { DndContext, DragEndEvent } from '@dnd-kit/core'
-import { moveUser } from '@/actions/move-user'
+import { moveUser } from '@/app/actions/move-user'
 
 export default function TreeContext({ children }: { children: React.ReactNode }) {
-  
+
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
 
@@ -15,7 +15,7 @@ export default function TreeContext({ children }: { children: React.ReactNode })
     // active.id = The User ID being dragged
     // over.id = The User ID of the new Manager
     console.log(`Moving user ${active.id} to manager ${over.id}`)
-    
+
     await moveUser(active.id as string, over.id as string)
   }
 

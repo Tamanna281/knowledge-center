@@ -30,5 +30,5 @@ export async function updateUser(userId: string, formData: FormData) {
     }
   })
 
-  revalidatePath('/dashboard/hierarchy')
+  revalidatePath('/dashboard/admin')
 }

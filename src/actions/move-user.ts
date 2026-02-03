@@ -12,7 +12,7 @@ export async function moveUser(userId: string, newManagerId: string) {
       where: { id: userId },
       data: { managerId: newManagerId }
     })
-    revalidatePath('/dashboard/hierarchy')
+    revalidatePath('/dashboard/admin')
   } catch (error) {
     console.error("Failed to move user", error)
     // In a real app, you'd check for circular dependency errors here

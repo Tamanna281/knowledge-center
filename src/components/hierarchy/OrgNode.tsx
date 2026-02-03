@@ -4,8 +4,8 @@
 import { useState, useEffect } from 'react'
 import { ChevronRight, ChevronDown, User, Shield, Plus, X, Trash2, Pencil, GripVertical, Save } from 'lucide-react'
 import AddUserForm from './AddUserForm'
-import { deleteUser } from '@/actions/delete-user'
-import { updateUser } from '@/actions/update-user'
+import { deleteUser } from '@/app/actions/delete-user'
+import { updateUser } from '@/app/actions/update-user'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 
@@ -27,13 +27,13 @@ function hasMatch(node: OrgUser, query: string): boolean {
   return node.children.some(child => hasMatch(child, query))
 }
 
-export default function OrgNode({ 
-  node, 
+export default function OrgNode({
+  node,
   isLast = true,
   searchQuery = '',
   existingRoles = [] // 2. Accept the list of roles
-}: { 
-  node: OrgUser, 
+}: {
+  node: OrgUser,
   isLast?: boolean,
   searchQuery?: string,
   existingRoles?: RoleOption[] // Type definition
@@ -41,14 +41,14 @@ export default function OrgNode({
   const [isOpen, setIsOpen] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
-  
+
   const children = node.children || []
   const isAdmin = node.role.name === 'ADMIN'
 
   // === SEARCH LOGIC ===
   const isDirectMatch = searchQuery && node.name.toLowerCase().includes(searchQuery.toLowerCase())
   const isChildMatch = searchQuery && children.some(child => hasMatch(child, searchQuery))
-  
+
   useEffect(() => {
     if (searchQuery && isChildMatch) {
       setIsOpen(true)
@@ -91,12 +91,12 @@ export default function OrgNode({
 
       <div className="py-2">
         <div className="flex items-center gap-3">
-          
+
           <div ref={setDropRef} className={`transition-all duration-200 ${isOver ? 'scale-105' : ''}`}>
-            <div 
-              ref={setDragRef} 
+            <div
+              ref={setDragRef}
               style={style}
-              {...attributes} 
+              {...attributes}
               className={`group flex items-center gap-3 p-3 rounded-lg shadow-sm border w-fit min-w-[320px] relative z-10 
                 ${isDirectMatch ? 'bg-yellow-50 border-yellow-400 ring-2 ring-yellow-200' : 'bg-white border-gray-200'}
                 ${isOver ? '!border-green-500 !bg-green-50' : ''}
@@ -107,10 +107,10 @@ export default function OrgNode({
                   <GripVertical size={14} />
                 </div>
               )}
-              {isAdmin && <div className="w-3.5" />} 
+              {isAdmin && <div className="w-3.5" />}
 
-              <button 
-                onClick={() => setIsOpen(!isOpen)} 
+              <button
+                onClick={() => setIsOpen(!isOpen)}
                 disabled={children.length === 0}
                 onPointerDown={(e) => e.stopPropagation()}
                 className={`p-1 rounded transition-colors ${children.length > 0 ? 'hover:bg-gray-100 text-gray-500' : 'invisible'}`}
@@ -123,15 +123,15 @@ export default function OrgNode({
               <div className="flex-grow">
                 {isEditing ? (
                   <form action={handleUpdate} className="flex flex-col gap-2 min-w-[180px]" onPointerDown={(e) => e.stopPropagation()}>
-                    <input 
-                      name="name" 
-                      defaultValue={node.name} 
+                    <input
+                      name="name"
+                      defaultValue={node.name}
                       className={editInputStyle}
                       placeholder="Name"
                     />
-                    <input 
-                      name="role" 
-                      defaultValue={node.role.name} 
+                    <input
+                      name="role"
+                      defaultValue={node.role.name}
                       className={editInputStyle}
                       placeholder="Role"
                     />
@@ -141,10 +141,10 @@ export default function OrgNode({
                   </form>
                 ) : (
                   <div className="flex flex-col">
-                     <span className={`text-sm ${isDirectMatch ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'}`}>
-                        {node.name}
-                     </span>
-                     <span className="text-[10px] text-gray-400 uppercase tracking-wide">{node.role.name}</span>
+                    <span className={`text-sm ${isDirectMatch ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'}`}>
+                      {node.name}
+                    </span>
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wide">{node.role.name}</span>
                   </div>
                 )}
               </div>
@@ -163,7 +163,7 @@ export default function OrgNode({
             </div>
           </div>
 
-          <button 
+          <button
             onClick={() => setShowAddForm(!showAddForm)}
             className={`p-2 rounded-full transition-colors relative z-10 ${showAddForm ? 'bg-gray-200 text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-600'}`}
           >
@@ -179,12 +179,12 @@ export default function OrgNode({
         )}
 
         {isOpen && children.length > 0 && (
-          <div className="mt-2 ml-4"> 
+          <div className="mt-2 ml-4">
             {children.map((child, index) => (
-              <OrgNode 
-                key={child.id} 
-                node={child} 
-                isLast={index === children.length - 1} 
+              <OrgNode
+                key={child.id}
+                node={child}
+                isLast={index === children.length - 1}
                 searchQuery={searchQuery}
                 existingRoles={existingRoles} // 4. Pass roles down recursively
               />
