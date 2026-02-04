@@ -1,6 +1,6 @@
 
 import Link from "next/link";
-import { Upload, Database, MessageSquare, Shield } from "lucide-react";
+import { Upload, Database, MessageSquare, Network } from "lucide-react";
 
 export default function Home() {
     return (
@@ -72,66 +72,26 @@ export default function Home() {
                         </div>
                     </Link>
 
-                    {/* Authentication Card */}
-                    <Link href="/login">
-                        <div className="group cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-xl transition-all duration-300 hover:scale-[1.05] hover:border-purple-400/50 hover:bg-white/10">
+                    {/* Admin Hierarchy Card */}
+                    <Link href="/hierarchy">
+                        <div className="group cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-xl transition-all duration-300 hover:scale-[1.05] hover:border-orange-400/50 hover:bg-white/10">
                             <div className="mb-4 inline-block rounded-full bg-gradient-to-br from-orange-500 to-red-500 p-3">
-                                <Shield className="h-8 w-8 text-white" />
+                                <Network className="h-8 w-8 text-white" />
                             </div>
                             <h2 className="mb-2 text-xl font-semibold text-white">
-                                Authentication
+                                Organisation Hierarchy
                             </h2>
                             <p className="text-sm text-slate-300">
-                                Login to access secure resources
+                                View and manage organizational structure and user roles
                             </p>
-                            <div className="mt-4 flex items-center text-sm font-medium text-purple-400 transition-all group-hover:translate-x-1">
-                                Login →
+                            <div className="mt-4 flex items-center text-sm font-medium text-orange-400 transition-all group-hover:translate-x-1">
+                                View Hierarchy →
                             </div>
                         </div>
                     </Link>
                 </div>
 
-                {/* Quick Start Section */}
-                <div className="mt-16 rounded-2xl border border-white/10 bg-white/5 p-8 shadow-xl backdrop-blur-xl">
-                    <h2 className="mb-6 text-2xl font-semibold text-white">
-                        Quick Start Guide
-                    </h2>
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <div className="flex gap-4">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-500 text-sm font-bold text-white">
-                                1
-                            </div>
-                            <div>
-                                <h3 className="mb-1 font-semibold text-white">Import Your Data</h3>
-                                <p className="text-sm text-slate-300">
-                                    Upload Excel or CSV files with your knowledge base content
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex gap-4">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-500 text-sm font-bold text-white">
-                                2
-                            </div>
-                            <div>
-                                <h3 className="mb-1 font-semibold text-white">Organize Content</h3>
-                                <p className="text-sm text-slate-300">
-                                    Categorize and tag your data for easy retrieval
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex gap-4">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-500 text-sm font-bold text-white">
-                                3
-                            </div>
-                            <div>
-                                <h3 className="mb-1 font-semibold text-white">Query with AI</h3>
-                                <p className="text-sm text-slate-300">
-                                    Use the chatbot to find information instantly
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+
             </main>
         </div>
     );

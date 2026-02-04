@@ -8,7 +8,7 @@ export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
 
     // Protected routes pattern
-    const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/chatbot') || pathname.startsWith('/import')
+    const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/chatbot') || pathname.startsWith('/import') || pathname.startsWith('/database') || pathname.startsWith('/hierarchy')
     const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/verify') || pathname.startsWith('/forgot') || pathname.startsWith('/reset')
 
     if (isProtectedRoute && !token) {
@@ -49,6 +49,8 @@ export const config = {
         '/dashboard/:path*',
         '/chatbot/:path*',
         '/import/:path*',
+        '/database/:path*',
+        '/hierarchy/:path*',
         '/login',
         '/signup',
         '/verify',
