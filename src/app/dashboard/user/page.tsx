@@ -20,7 +20,7 @@ export default function UserDashboard() {
     }, [router])
 
     const handleLogout = async () => {
-        await api.post('/logout')
+        await api.post('/auth/logout')
         router.push('/login')
     }
 

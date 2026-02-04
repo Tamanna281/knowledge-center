@@ -1,10 +1,30 @@
+"use client"
 
 import Link from "next/link";
-import { Upload, Database, MessageSquare, Network } from "lucide-react";
+import { Upload, Database, MessageSquare, Network, LogOut } from "lucide-react";
 
 export default function Home() {
+    const handleLogout = async () => {
+        await fetch('/api/auth/logout', { method: 'POST' })
+        window.location.href = '/login'
+    }
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+            {/* Navigation Header */}
+            <nav className="border-b border-white/10 bg-black/20 backdrop-blur-xl">
+                <div className="container mx-auto flex items-center justify-between px-6 py-4">
+                    <h2 className="text-xl font-bold text-white">Knowledge Center</h2>
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 rounded-lg bg-red-500/20 px-4 py-2 text-red-300 transition-all hover:bg-red-500/30"
+                    >
+                        <LogOut className="h-4 w-4" />
+                        Logout
+                    </button>
+                </div>
+            </nav>
+
             <main className="container mx-auto px-6 py-16">
                 {/* Header */}
                 <div className="mb-16 text-center">
@@ -73,7 +93,7 @@ export default function Home() {
                     </Link>
 
                     {/* Admin Hierarchy Card */}
-                    <Link href="/hierarchy">
+                    <Link href="/dashboard/admin">
                         <div className="group cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-xl transition-all duration-300 hover:scale-[1.05] hover:border-orange-400/50 hover:bg-white/10">
                             <div className="mb-4 inline-block rounded-full bg-gradient-to-br from-orange-500 to-red-500 p-3">
                                 <Network className="h-8 w-8 text-white" />
@@ -90,6 +110,7 @@ export default function Home() {
                         </div>
                     </Link>
                 </div>
+
 
 
             </main>

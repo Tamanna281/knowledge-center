@@ -7,16 +7,23 @@ export function middleware(request: NextRequest) {
 
     const { pathname } = request.nextUrl
 
-    // Protected routes pattern
+    // Protected routes pattern (home page requires auth but doesn't redirect)
     const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/chatbot') || pathname.startsWith('/import') || pathname.startsWith('/database') || pathname.startsWith('/hierarchy')
     const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/verify') || pathname.startsWith('/forgot') || pathname.startsWith('/reset')
 
-    if (isProtectedRoute && !token) {
+    // If accessing root without token, redirect to login
+    if (pathname === '/' && !token) {
         return NextResponse.redirect(new URL('/login', request.url))
     }
 
+    // If logged in and accessing auth routes, redirect to home
     if (isAuthRoute && token) {
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+        return NextResponse.redirect(new URL('/', request.url))
+    }
+
+    // Protect other routes
+    if (isProtectedRoute && !token) {
+        return NextResponse.redirect(new URL('/login', request.url))
     }
 
     // Role-based access: if user tries to access admin dashboard ensure token contains role=ADMIN
@@ -32,8 +39,8 @@ export function middleware(request: NextRequest) {
                 const data = JSON.parse(json)
                 const role = data?.role
                 if (role !== 'ADMIN') {
-                    // Redirect non-admins to shared dashboard
-                    return NextResponse.redirect(new URL('/dashboard', request.url))
+                    // Redirect non-admins to home
+                    return NextResponse.redirect(new URL('/', request.url))
                 }
             }
         } catch {
@@ -46,6 +53,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
+        '/',
         '/dashboard/:path*',
         '/chatbot/:path*',
         '/import/:path*',

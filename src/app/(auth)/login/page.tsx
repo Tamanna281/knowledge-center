@@ -25,15 +25,8 @@ export default function LoginPage() {
             // use email/password authentication
             const response = await api.post('/auth/login', { identifier: formData.email, password: formData.password })
 
-            // Get user role from response
-            const userRole = response.data.user?.role
-
-            // Redirect based on role
-            if (userRole === 'ADMIN') {
-                router.push('/dashboard/admin')
-            } else {
-                router.push('/dashboard/user')
-            }
+            // Redirect to home page after successful login
+            router.push('/')
         } catch (err: unknown) {
             setError(getApiErrorMessage(err, 'Login failed'))
         } finally {
