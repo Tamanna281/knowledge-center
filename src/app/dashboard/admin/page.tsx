@@ -5,9 +5,7 @@ import { useRouter } from 'next/navigation'
 import OrgNode from '@/components/hierarchy/OrgNode'
 import AddUserForm from '@/components/hierarchy/AddUserForm'
 import TreeContext from '@/components/hierarchy/TreeContext'
-import BranchList from '@/components/BranchList'
-import DepartmentList from '@/components/DepartmentList'
-import UsersByDepartment from '@/components/UserByDepartment'
+
 
 
 type RoleOption = {
@@ -24,27 +22,11 @@ type AdminUser = {
     managerId?: string | null
 }
 
-type Branch = {
-    id: string
-    name: string
-    location?: string
-}
-
-type Department = {
-    id: string
-    name: string
-    branchId: string
-    branch?: Branch
-}
-
-
 type AdminStats = {
     totalUsers: number
     byRole: Record<string, number>
-    users: any[] // Updated to include branch/dept info
+    users: any[]
     roles: RoleOption[]
-    branches: Branch[]
-    departments: Department[]
 }
 
 type OrgUser = {
@@ -69,7 +51,6 @@ export default function AdminDashboard() {
     useEffect(() => {
         api.get('/auth/me').then(res => setUser(res.data)).catch(() => router.push('/login'))
 
-        // Fetch stats which now includes branches/depts/users lookup
         api.get('/admin/stats').then(res => {
             const data = res.data
             setStats(data)
@@ -110,25 +91,7 @@ export default function AdminDashboard() {
         router.push('/login')
     }
 
-    const handleAddBranch = async (name: string, location: string) => {
-        try {
-            await api.post('/admin/branches', { name, location })
-            setRefreshKey(prev => prev + 1)
-        } catch (error) {
-            console.error("Failed to add branch", error)
-            alert("Failed to add branch")
-        }
-    }
 
-    const handleAddDepartment = async (name: string, branchId: string) => {
-        try {
-            await api.post('/admin/departments', { name, branchId })
-            setRefreshKey(prev => prev + 1)
-        } catch (error) {
-            console.error("Failed to add department", error)
-            alert("Failed to add department")
-        }
-    }
 
     return (
         <div className="min-h-screen bg-gray-50 p-8 font-sans">
@@ -153,45 +116,6 @@ export default function AdminDashboard() {
                             Logout
                         </button>
                     </div>
-                </div>
-
-                {/* Knowledge Base Actions */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <button
-                        onClick={() => router.push('/import')}
-                        className="p-6 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white shadow-md hover:shadow-lg hover:scale-[1.01] transition-all text-left"
-                    >
-                        <h3 className="text-xl font-bold mb-2">Import Data</h3>
-                        <p className="text-purple-100 opacity-90">Upload Excel or CSV files to update the knowledge base.</p>
-                    </button>
-                    <button
-                        onClick={() => router.push('/chatbot')}
-                        className="p-6 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl text-white shadow-md hover:shadow-lg hover:scale-[1.01] transition-all text-left"
-                    >
-                        <h3 className="text-xl font-bold mb-2">AI Chatbot</h3>
-                        <p className="text-blue-100 opacity-90">Ask questions and query your organization's data.</p>
-                    </button>
-                </div>
-
-                {/* Stats & Quick Actions Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Branch Management */}
-                    <BranchList
-                        branches={stats?.branches || []}
-                        onAddBranch={handleAddBranch}
-                    />
-
-                    {/* Department Management */}
-                    <DepartmentList
-                        departments={stats?.departments || []}
-                        branches={stats?.branches || []}
-                        onAddDepartment={handleAddDepartment}
-                    />
-                </div>
-
-                {/* Users organized by Department (NEW) */}
-                <div className="w-full">
-                    <UsersByDepartment users={stats?.users || []} />
                 </div>
 
                 {/* Legacy Hierarchy View */}

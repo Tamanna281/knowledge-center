@@ -16,9 +16,7 @@ export async function GET() {
         const totalUsers = await prisma.user.count()
         const users = await prisma.user.findMany({
             include: {
-                role: true,
-                branch: true,
-                department: true
+                role: true
             }
         })
 
@@ -33,20 +31,11 @@ export async function GET() {
             select: { id: true, name: true, privileges: true }
         })
 
-        const branches = await prisma.branch.findMany({
-            include: { departments: true }
-        })
-        const departments = await prisma.department.findMany({
-            include: { branch: true }
-        })
-
         return NextResponse.json({
             totalUsers,
             byRole,
             users,
-            roles,
-            branches,
-            departments
+            roles
         })
 
     } catch (error) {
