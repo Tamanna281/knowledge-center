@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
         const results = await prisma.knowledgeBase.findMany({
             where: {
                 OR: keywords.map((keyword) => ({
-                    content: { contains: keyword }, // Removed mode: insensitive as sqlite doesn't support it generally or it's default depending on collation
+                    content: { contains: keyword, mode: "insensitive" },
                 })),
             },
             take: 20,
