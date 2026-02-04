@@ -5,12 +5,15 @@ export default function DepartmentList({ departments, branches, onAddDepartment 
     const [name, setName] = useState('')
     const [branchId, setBranchId] = useState('')
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [isAdding, setIsAdding] = useState(false)
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (name && branchId) {
-            onAddDepartment(name, branchId)
+            setIsAdding(true)
+            await onAddDepartment(name, branchId)
             setName('')
             setBranchId('')
+            setIsAdding(false)
         }
     }
 
@@ -40,9 +43,10 @@ export default function DepartmentList({ departments, branches, onAddDepartment 
                 </select>
                 <button
                     type="submit"
-                    className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 py-2 rounded hover:opacity-90 transition-opacity"
+                    disabled={isAdding}
+                    className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 py-2 rounded hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                    Add
+                    {isAdding ? 'Adding...' : 'Add'}
                 </button>
             </form>
 

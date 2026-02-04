@@ -83,10 +83,11 @@ export default function ImportPage() {
                 processedFiles: data.processedFiles
             });
             setFiles([]); // Clear files on success
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Network error. Please try again.';
             setUploadStatus({
                 status: 'error',
-                message: error.response?.data?.error || error.message || 'Network error. Please try again.',
+                message: (error as any).response?.data?.error || message,
             });
         }
     };

@@ -1,5 +1,5 @@
 // src/app/dashboard/hierarchy/page.tsx
-import { getHierarchy } from '@/app/actions/hierarchy'
+import { getHierarchy } from '@/actions/hierarchy'
 
 export const dynamic = 'force-dynamic'
 import OrgNode from '@/components/hierarchy/OrgNode'
@@ -14,10 +14,14 @@ type Props = {
 
 export default async function Page({ searchParams }: Props) {
     let tree: any[] = []
+    let errorMessage: string | null = null
+
     try {
         tree = await getHierarchy()
-    } catch (error) {
-        console.warn('Failed to fetch hierarchy', error)
+        console.log('✅ Hierarchy loaded, tree length:', tree.length)
+    } catch (error: any) {
+        console.error('❌ Failed to fetch hierarchy:', error)
+        errorMessage = error.message || 'Unknown error'
     }
 
     // 2. Fetch Roles (for the dropdown in AddUserForm)
@@ -46,8 +50,19 @@ export default async function Page({ searchParams }: Props) {
                 <SearchInput />
 
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 min-h-[500px] overflow-auto">
-                    {tree.length === 0 ? (
-                        <p className="text-gray-500">No users found.</p>
+                    {errorMessage ? (
+                        <div className="p-4 bg-red-50 border border-red-200 rounded">
+                            <p className="text-red-700 font-semibold">Error loading hierarchy:</p>
+                            <p className="text-red-600 text-sm mt-1">{errorMessage}</p>
+                        </div>
+                    ) : tree.length === 0 ? (
+                        <div className="text-center py-8">
+                            <p className="text-gray-500 mb-4">No hierarchy found.</p>
+                            <p className="text-gray-400 text-sm mb-2">Run the database seed script to create initial users:</p>
+                            <code className="text-xs bg-gray-100 px-3 py-1.5 rounded block max-w-2xl mx-auto">
+                                npx ts-node --compiler-options {'{"module":"CommonJS"}'} prisma/seed.ts
+                            </code>
+                        </div>
                     ) : (
                         <TreeContext>
                             {tree.map(rootUser => (

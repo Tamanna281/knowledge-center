@@ -1,21 +1,17 @@
 # Dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.js
-
-# Testing
-/coverage
+.yarn/install-state.gz
 
 # Next.js
-/.next/
-/out/
+.next/
+out/
+build/
+dist/
 
 # Production
 /build
-
-# Misc
-.DS_Store
-*.pem
 
 # Debug
 npm-debug.log*
@@ -23,7 +19,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Local Env Files
+# Local env files
 .env
 .env*.local
 .env.local
@@ -38,17 +34,68 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Editor directories and files
-.idea
-.vscode
+# Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+prisma/dev.db
+prisma/dev.db-journal
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# IDE - VSCode
+.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+# IDE - IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
+lerna-debug.log*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
 *.swp
 *.swo
+*~
 
-# OS Generated Files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Cache
+.cache/
+.npm/
+.eslintcache
+.stylelintcache
+
+# Turbopack
+.turbo/
+
+# Backup files
+*.bak
+*.backup
+
+# Duplicate merge folder (if recreated)
+/merge/
+
+# Scripts that may contain sensitive info
+fix_db.bat

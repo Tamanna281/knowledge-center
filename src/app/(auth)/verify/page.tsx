@@ -30,7 +30,7 @@ function VerifyContent() {
         setError('')
         setSuccess('')
         try {
-            await api.post('/resend-otp', { userId, type })
+            await api.post('/auth/resend-otp', { userId, type })
             setSuccess('OTP Resent!')
             setTimeLeft(60)
         } catch (err: unknown) {
@@ -45,7 +45,7 @@ function VerifyContent() {
         setLoading(true)
         setError('')
         try {
-            await api.post('/verify-otp', { userId, otp, type })
+            await api.post('/auth/verify-otp', { userId, otp, type })
             router.push('/login?verified=true')
         } catch (err: unknown) {
             setError(getApiErrorMessage(err, 'Verification failed'))

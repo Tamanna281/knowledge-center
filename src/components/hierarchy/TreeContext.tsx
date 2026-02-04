@@ -2,7 +2,7 @@
 'use client'
 
 import { DndContext, DragEndEvent } from '@dnd-kit/core'
-import { moveUser } from '@/app/actions/move-user'
+import { moveUser } from '@/actions/move-user'
 
 export default function TreeContext({ children }: { children: React.ReactNode }) {
 

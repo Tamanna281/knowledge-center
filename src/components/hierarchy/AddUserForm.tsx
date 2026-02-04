@@ -1,9 +1,9 @@
 // src/components/hierarchy/AddUserForm.tsx
 'use client'
 
-import { createUser } from '@/app/actions/create-user'
+import { createUser } from '@/actions/create-user'
 import { useState } from 'react'
-import { SYSTEM_PRIVILEGES, TRANSACTION_COLUMNS, getFieldPrivileges } from '@/lib/config/permissions'
+import { SYSTEM_PRIVILEGES, TRANSACTION_COLUMNS, getFieldPrivileges } from '@/config/permissions'
 
 type RoleOption = { id: string; name: string }
 
@@ -15,12 +15,34 @@ export default function AddUserForm({
   existingRoles?: RoleOption[]
 }) {
   const [isNewRole, setIsNewRole] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const inputStyle = "p-2 border border-gray-300 rounded text-sm bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none shadow-sm transition-all w-full"
 
+  const handleSubmit = async (formData: FormData) => {
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      await createUser(formData)
+      setIsSubmitting(false)
+      window.location.reload() // Force refresh to see new user in hierarchy
+    } catch (err: any) {
+      setError(err.message || 'Failed to create user')
+      setIsSubmitting(false)
+    }
+  }
+
   return (
-    <form action={createUser} className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50 shadow-inner w-[420px]">
+    <form action={handleSubmit} className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50 shadow-inner w-[420px]">
       <h3 className="text-sm font-bold mb-3 text-gray-700">Add Employee</h3>
+
+      {error && (
+        <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
+          {error}
+        </div>
+      )}
 
       <input type="hidden" name="managerId" value={managerId} />
 
@@ -104,8 +126,12 @@ export default function AddUserForm({
           )}
         </div>
 
-        <button type="submit" className="bg-blue-600 text-white p-2.5 rounded text-sm hover:bg-blue-700 transition font-medium mt-2 shadow-sm active:scale-95">
-          + Create Account
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="bg-blue-600 text-white p-2.5 rounded text-sm hover:bg-blue-700 transition font-medium mt-2 shadow-sm active:scale-95 disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          {isSubmitting ? 'Creating...' : '+ Create Account'}
         </button>
       </div>
     </form>

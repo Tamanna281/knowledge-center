@@ -23,12 +23,12 @@ export async function handleUserLogin(req: NextRequest) {
             return NextResponse.json({ message: 'Password required' }, { status: 400 })
         }
 
-        // Find user by email or username
+        // Find user by email or username (case-insensitive)
         const user = await prisma.user.findFirst({
             where: {
                 OR: [
-                    { email: identifier || email },
-                    { username: identifier }
+                    { email: { equals: identifier || email, mode: 'insensitive' } },
+                    { username: { equals: identifier, mode: 'insensitive' } }
                 ]
             },
             include: {
@@ -86,12 +86,12 @@ export async function handleSignup(req: Request) {
             return NextResponse.json({ message: 'Name/Username, email and password are required' }, { status: 400 })
         }
 
-        // Check if user already exists
+        // Check if user already exists (case-insensitive)
         const existingUser = await prisma.user.findFirst({
             where: {
                 OR: [
-                    { email },
-                    username ? { username } : undefined,
+                    { email: { equals: email, mode: 'insensitive' } },
+                    username ? { username: { equals: username, mode: 'insensitive' } } : undefined,
                     phone ? { phone } : undefined
                 ].filter(Boolean) as any
             }

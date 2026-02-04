@@ -5,12 +5,15 @@ export default function BranchList({ branches, onAddBranch }: { branches: any[],
     const [name, setName] = useState('')
     const [location, setLocation] = useState('')
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [isAdding, setIsAdding] = useState(false)
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (name) {
-            onAddBranch(name, location)
+            setIsAdding(true)
+            await onAddBranch(name, location)
             setName('')
             setLocation('')
+            setIsAdding(false)
         }
     }
 
@@ -37,9 +40,10 @@ export default function BranchList({ branches, onAddBranch }: { branches: any[],
                 />
                 <button
                     type="submit"
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded hover:opacity-90 transition-opacity"
+                    disabled={isAdding}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                    Add
+                    {isAdding ? 'Adding...' : 'Add'}
                 </button>
             </form>
 

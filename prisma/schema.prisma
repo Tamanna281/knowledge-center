@@ -47,6 +47,12 @@ model User {
   roleId    String
   role      Role     @relation(fields: [roleId], references: [id])
 
+  // Org context
+  branchId     String?
+  branch       Branch?     @relation(fields: [branchId], references: [id])
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
   // Hierarchy - Self-Relation for Manager/Subordinates
   managerId String?
   manager   User?    @relation("UserHierarchy", fields: [managerId], references: [id])
@@ -56,23 +62,42 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
+model Branch {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  location    String?
+  departments Department[]
+  users       User[]
+  createdAt   DateTime     @default(now())
+}
+
+model Department {
+  id        String   @id @default(uuid())
+  name      String
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  users     User[]
+  createdAt DateTime @default(now())
+  
+  @@unique([name, branchId])
+}
+
 // ... existing models ...
 
-// The Automated Data Table
 model Transaction {
-  id           String   @id @default(uuid()) // TransactionID
-  itemName     String
-  category     String
-  quantity     Int
-  units        String   // e.g. "kg", "pcs"
-  price        Float
-  totalCost    Float
-  purchaseDate DateTime @default(now())
-  supplier     String
-  buyer        String
-  
+  id           Int      @id @default(autoincrement())
+  itemName     String   @map("ItemName")
+  category     String?  @map("Category")
+  quantity     Int      @map("Quantity")
+  units        String?  @map("Units")
+  price        Float?   @map("Price")
+  totalCost    Float?   @map("TotalCost")
+  purchaseDate String?  @map("PurchaseDate")
+  supplier     String?  @map("Supplier")
+  buyer        String?  @map("Buyer")
   createdAt    DateTime @default(now())
 }
+
 
 model KnowledgeBase {
   id        Int      @id @default(autoincrement())

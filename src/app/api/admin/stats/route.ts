@@ -33,7 +33,9 @@ export async function GET() {
             select: { id: true, name: true, privileges: true }
         })
 
-        const branches = await prisma.branch.findMany()
+        const branches = await prisma.branch.findMany({
+            include: { departments: true }
+        })
         const departments = await prisma.department.findMany({
             include: { branch: true }
         })
@@ -48,6 +50,7 @@ export async function GET() {
         })
 
     } catch (error) {
+        console.error('Error in /api/admin/stats:', error)
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
     }
 }

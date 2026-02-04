@@ -9,6 +9,7 @@ import BranchList from '@/components/BranchList'
 import DepartmentList from '@/components/DepartmentList'
 import UsersByDepartment from '@/components/UserByDepartment'
 
+
 type RoleOption = {
     id: string
     name: string
@@ -36,6 +37,7 @@ type Department = {
     branch?: Branch
 }
 
+
 type AdminStats = {
     totalUsers: number
     byRole: Record<string, number>
@@ -48,6 +50,7 @@ type AdminStats = {
 type OrgUser = {
     id: string
     name: string
+    email: string
     role: { name: string }
     managerId?: string | null
     children: OrgUser[]

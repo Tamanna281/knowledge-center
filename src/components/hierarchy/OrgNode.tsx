@@ -4,15 +4,17 @@
 import { useState, useEffect } from 'react'
 import { ChevronRight, ChevronDown, User, Shield, Plus, X, Trash2, Pencil, GripVertical, Save } from 'lucide-react'
 import AddUserForm from './AddUserForm'
-import { deleteUser } from '@/app/actions/delete-user'
-import { updateUser } from '@/app/actions/update-user'
+import { deleteUser } from '@/actions/delete-user'
+import { updateUser } from '@/actions/update-user'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 
 type OrgUser = {
   id: string
   name: string
+  email: string
   role: { name: string }
+  managerId?: string | null
   children: OrgUser[]
 }
 
@@ -71,13 +73,22 @@ export default function OrgNode({
   }
 
   const handleUpdate = async (formData: FormData) => {
-    await updateUser(node.id, formData)
-    setIsEditing(false)
+    try {
+      await updateUser(node.id, formData)
+      setIsEditing(false)
+    } catch (err: any) {
+      alert(err.message || 'Failed to update user')
+    }
   }
 
   const handleDelete = async () => {
     if (confirm(`Delete ${node.name}?`)) {
-      await deleteUser(node.id)
+      try {
+        await deleteUser(node.id)
+        window.location.reload()
+      } catch (err: any) {
+        alert(err.message || 'Failed to delete user')
+      }
     }
   }
 
@@ -149,14 +160,14 @@ export default function OrgNode({
                 )}
               </div>
 
-              {/* ACTIONS: Completely Hidden if User is Admin */}
-              {!isEditing && !isAdmin && (
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => e.stopPropagation()}>
+              {/* ACTIONS: Protect ROOT Admin and all ADMINs */}
+              {!isEditing && !isAdmin && node.email !== 'bhavya.jn2804@gmail.com' && (
+                <div className="flex gap-1 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => e.stopPropagation()}>
                   <button onClick={() => setIsEditing(true)} className="p-2 text-gray-400 hover:text-blue-600">
                     <Pencil size={14} />
                   </button>
-                  <button onClick={handleDelete} className="p-2 text-gray-400 hover:text-red-600">
-                    <Trash2 size={14} />
+                  <button onClick={handleDelete} className="p-2 text-red-500 hover:text-red-700 transition-colors">
+                    <Trash2 size={16} />
                   </button>
                 </div>
               )}
