@@ -76,7 +76,8 @@ export async function GET() {
             hierarchy: roots,
             roles,
             userPrivileges,
-            currentUserRole: decoded.role
+            currentUserRole: decoded.role,
+            currentUserId: decoded.userId
         })
 
     } catch (error) {

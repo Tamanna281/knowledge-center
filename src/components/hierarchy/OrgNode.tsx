@@ -34,23 +34,34 @@ export default function OrgNode({
   isLast = true,
   searchQuery = '',
   existingRoles = [], // 2. Accept the list of roles
-  userPrivileges = [] // Current user's privileges
+  userPrivileges = [], // Current user's privileges
+  currentUserId = '', // ID of the logged-in user
+  isAdmin = false, // Is the logged-in user an admin?
+  isInUserSubtree = false // Is this node in the user's management subtree?
 }: {
   node: OrgUser,
   isLast?: boolean,
   searchQuery?: string,
   existingRoles?: RoleOption[], // Type definition
-  userPrivileges?: string[] // Current user's privileges
+  userPrivileges?: string[], // Current user's privileges
+  currentUserId?: string, // ID of the logged-in user
+  isAdmin?: boolean, // Is the logged-in user an admin?
+  isInUserSubtree?: boolean // Is this node in the user's management subtree?
 }) {
-  // Check privileges
-  const canAddUser = userPrivileges.includes('ADD_USER')
-  const canDeleteUser = userPrivileges.includes('DELETE_USER')
+  // Check if this node IS the current user (start of subtree)
+  const isCurrentUser = node.id === currentUserId
+  // This node is in user's subtree if parent was, or if this IS the user
+  const nodeIsInSubtree = isInUserSubtree || isCurrentUser
+
+  // Check privileges - only allow if in subtree or admin
+  const canAddUser = (isAdmin || (userPrivileges.includes('ADD_USER') && nodeIsInSubtree))
+  const canDeleteUser = (isAdmin || (userPrivileges.includes('DELETE_USER') && nodeIsInSubtree))
   const [isOpen, setIsOpen] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
 
   const children = node.children || []
-  const isAdmin = node.role.name === 'ADMIN'
+  const isNodeAdmin = node.role.name === 'ADMIN'
 
   // === SEARCH LOGIC ===
   const isDirectMatch = searchQuery && node.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -68,7 +79,7 @@ export default function OrgNode({
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: node.id })
   const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } = useDraggable({
     id: node.id,
-    disabled: isAdmin,
+    disabled: isNodeAdmin,
   })
 
   const style = {
@@ -123,7 +134,7 @@ export default function OrgNode({
                   <GripVertical size={14} />
                 </div>
               )}
-              {isAdmin && <div className="w-3.5" />}
+              {!isNodeAdmin && <div className="w-3.5" />}
 
               <button
                 onClick={() => setIsOpen(!isOpen)}
@@ -134,7 +145,7 @@ export default function OrgNode({
                 {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               </button>
 
-              {isAdmin ? <Shield size={18} className="text-purple-600" /> : <User size={18} className="text-blue-600" />}
+              {isNodeAdmin ? <Shield size={18} className="text-purple-600" /> : <User size={18} className="text-blue-600" />}
 
               <div className="flex-grow">
                 {isEditing ? (
@@ -165,8 +176,8 @@ export default function OrgNode({
                 )}
               </div>
 
-              {/* ACTIONS: Protect ROOT Admin and all ADMINs, check privileges */}
-              {!isEditing && !isAdmin && node.email !== 'bhavya.jn2804@gmail.com' && canDeleteUser && (
+              {/* ACTIONS: Protect ROOT Admin and all ADMINs, check privileges AND subtree */}
+              {!isEditing && !isNodeAdmin && node.email !== 'bhavya.jn2804@gmail.com' && canDeleteUser && (
                 <div className="flex gap-1 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => e.stopPropagation()}>
                   <button onClick={() => setIsEditing(true)} className="p-2 text-gray-400 hover:text-blue-600">
                     <Pencil size={14} />
@@ -207,6 +218,9 @@ export default function OrgNode({
                 searchQuery={searchQuery}
                 existingRoles={existingRoles} // 4. Pass roles down recursively
                 userPrivileges={userPrivileges} // Pass privileges down recursively
+                currentUserId={currentUserId}
+                isAdmin={isAdmin}
+                isInUserSubtree={nodeIsInSubtree} // Pass subtree status to children
               />
             ))}
           </div>

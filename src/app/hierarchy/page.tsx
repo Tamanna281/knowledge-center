@@ -27,6 +27,8 @@ export default function HierarchyPage() {
     const [hierarchy, setHierarchy] = useState<OrgUser[]>([])
     const [roles, setRoles] = useState<RoleOption[]>([])
     const [userPrivileges, setUserPrivileges] = useState<string[]>([])
+    const [currentUserId, setCurrentUserId] = useState<string>('')
+    const [isAdmin, setIsAdmin] = useState(false)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -39,11 +41,13 @@ export default function HierarchyPage() {
             const response = await axios.get('/api/hierarchy', {
                 withCredentials: true
             })
-            const { hierarchy: fetchedHierarchy, roles: fetchedRoles, userPrivileges: privileges } = response.data
+            const { hierarchy: fetchedHierarchy, roles: fetchedRoles, userPrivileges: privileges, currentUserId: userId, currentUserRole } = response.data
 
             setHierarchy(fetchedHierarchy || [])
             setRoles(fetchedRoles || [])
             setUserPrivileges(privileges || [])
+            setCurrentUserId(userId || '')
+            setIsAdmin(currentUserRole === 'ADMIN')
             setLoading(false)
         } catch (err: any) {
             console.error('Failed to fetch hierarchy:', err)
@@ -128,6 +132,9 @@ export default function HierarchyPage() {
                                             node={node}
                                             existingRoles={roles}
                                             userPrivileges={userPrivileges}
+                                            currentUserId={currentUserId}
+                                            isAdmin={isAdmin}
+                                            isInUserSubtree={isAdmin} // Admins can manage all
                                         />
                                     ))}
                                 </div>
