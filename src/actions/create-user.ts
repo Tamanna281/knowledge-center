@@ -76,6 +76,10 @@ export async function createUser(formData: FormData) {
         password: hashedPassword,
         roleId: finalRoleId,
         managerId: managerId || null,
+        // Auto-activate admin-created users (no OTP verification needed)
+        isActive: true,
+        emailVerified: true,
+        phoneVerified: true,
       },
     })
 
