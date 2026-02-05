@@ -75,25 +75,23 @@ export default function Home() {
                         </div>
                     </Link>
 
-                    {/* Database Card - Admin Only */}
-                    {isAdmin && (
-                        <Link href="/database">
-                            <div className="group cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-xl transition-all duration-300 hover:scale-[1.05] hover:border-blue-400/50 hover:bg-white/10">
-                                <div className="mb-4 inline-block rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 p-3">
-                                    <Database className="h-8 w-8 text-white" />
-                                </div>
-                                <h2 className="mb-2 text-xl font-semibold text-white">
-                                    Database
-                                </h2>
-                                <p className="text-sm text-slate-300">
-                                    Secure and scalable data storage with PostgreSQL
-                                </p>
-                                <div className="mt-4 flex items-center text-sm font-medium text-blue-400 transition-all group-hover:translate-x-1">
-                                    View Data →
-                                </div>
+                    {/* Database Card */}
+                    <Link href="/database">
+                        <div className="group cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-xl transition-all duration-300 hover:scale-[1.05] hover:border-blue-400/50 hover:bg-white/10">
+                            <div className="mb-4 inline-block rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 p-3">
+                                <Database className="h-8 w-8 text-white" />
                             </div>
-                        </Link>
-                    )}
+                            <h2 className="mb-2 text-xl font-semibold text-white">
+                                Database
+                            </h2>
+                            <p className="text-sm text-slate-300">
+                                Secure and scalable data storage with PostgreSQL
+                            </p>
+                            <div className="mt-4 flex items-center text-sm font-medium text-blue-400 transition-all group-hover:translate-x-1">
+                                View Data →
+                            </div>
+                        </div>
+                    </Link>
 
                     {/* Chat Interface Card */}
                     <Link href="/chatbot">
