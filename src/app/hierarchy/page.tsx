@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2, ShieldX } from 'lucide-react'
 import axios from 'axios'
 import TreeContext from '@/components/hierarchy/TreeContext'
 import OrgNode from '@/components/hierarchy/OrgNode'
@@ -26,7 +26,9 @@ export default function HierarchyPage() {
     const router = useRouter()
     const [hierarchy, setHierarchy] = useState<OrgUser[]>([])
     const [roles, setRoles] = useState<RoleOption[]>([])
+    const [userPrivileges, setUserPrivileges] = useState<string[]>([])
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
         fetchHierarchy()
@@ -34,43 +36,25 @@ export default function HierarchyPage() {
 
     const fetchHierarchy = async () => {
         try {
-            const response = await axios.get('/api/admin/stats', {
+            const response = await axios.get('/api/hierarchy', {
                 withCredentials: true
             })
-            const { users, roles: fetchedRoles } = response.data
+            const { hierarchy: fetchedHierarchy, roles: fetchedRoles, userPrivileges: privileges } = response.data
 
-            // Build hierarchy
-            const userMap = new Map<string, OrgUser>()
-
-            // Initialize nodes
-            users.forEach((u: any) => {
-                userMap.set(u.id, {
-                    ...u,
-                    name: u.username || u.email || 'Unknown',
-                    email: u.email,
-                    role: { name: u.role?.name || u.role },
-                    children: []
-                })
-            })
-
-            // Build tree
-            const roots: OrgUser[] = []
-            userMap.forEach((user) => {
-                if (user.managerId && userMap.has(user.managerId)) {
-                    userMap.get(user.managerId)!.children.push(user)
-                } else {
-                    roots.push(user)
-                }
-            })
-
-            setHierarchy(roots)
+            setHierarchy(fetchedHierarchy || [])
             setRoles(fetchedRoles || [])
+            setUserPrivileges(privileges || [])
             setLoading(false)
-        } catch (error) {
-            console.error('Failed to fetch hierarchy:', error)
+        } catch (err: any) {
+            console.error('Failed to fetch hierarchy:', err)
+            setError(err.response?.data?.error || 'Failed to load hierarchy')
             setLoading(false)
         }
     }
+
+    // Check privileges
+    const canAddUser = userPrivileges.includes('ADD_USER')
+    const canDeleteUser = userPrivileges.includes('DELETE_USER')
 
     if (loading) {
         return (
@@ -78,6 +62,24 @@ export default function HierarchyPage() {
                 <div className="flex items-center gap-3 text-xl text-white">
                     <Loader2 className="h-6 w-6 animate-spin" />
                     Loading hierarchy...
+                </div>
+            </div>
+        )
+    }
+
+    if (error) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+                <div className="text-center">
+                    <ShieldX className="h-16 w-16 text-red-400 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-white mb-2">Access Denied</h2>
+                    <p className="text-slate-400 mb-6">{error}</p>
+                    <button
+                        onClick={() => router.push('/')}
+                        className="px-6 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition"
+                    >
+                        Go Back to Home
+                    </button>
                 </div>
             </div>
         )
@@ -114,7 +116,9 @@ export default function HierarchyPage() {
                                         <p className="mb-2 text-lg">No hierarchy data available</p>
                                         <p className="text-sm">Add users to see the organizational structure</p>
                                     </div>
-                                    <AddUserForm managerId="" existingRoles={roles} />
+                                    {canAddUser && (
+                                        <AddUserForm managerId="" existingRoles={roles} />
+                                    )}
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -123,6 +127,7 @@ export default function HierarchyPage() {
                                             key={node.id}
                                             node={node}
                                             existingRoles={roles}
+                                            userPrivileges={userPrivileges}
                                         />
                                     ))}
                                 </div>
@@ -134,3 +139,4 @@ export default function HierarchyPage() {
         </div>
     )
 }
+

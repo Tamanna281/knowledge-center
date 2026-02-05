@@ -1,9 +1,28 @@
 "use client"
 
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import { Upload, Database, MessageSquare, Network, LogOut } from "lucide-react";
 
 export default function Home() {
+    const [isAdmin, setIsAdmin] = useState(false)
+
+    useEffect(() => {
+        // Fetch current user to check if admin
+        const checkUser = async () => {
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'include' })
+                if (res.ok) {
+                    const data = await res.json()
+                    setIsAdmin(data.role === 'ADMIN')
+                }
+            } catch (e) {
+                // Ignore errors
+            }
+        }
+        checkUser()
+    }, [])
+
     const handleLogout = async () => {
         await fetch('/api/auth/logout', { method: 'POST' })
         window.location.href = '/login'
@@ -56,23 +75,25 @@ export default function Home() {
                         </div>
                     </Link>
 
-                    {/* Database Card */}
-                    <Link href="/database">
-                        <div className="group cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-xl transition-all duration-300 hover:scale-[1.05] hover:border-blue-400/50 hover:bg-white/10">
-                            <div className="mb-4 inline-block rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 p-3">
-                                <Database className="h-8 w-8 text-white" />
+                    {/* Database Card - Admin Only */}
+                    {isAdmin && (
+                        <Link href="/database">
+                            <div className="group cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-xl transition-all duration-300 hover:scale-[1.05] hover:border-blue-400/50 hover:bg-white/10">
+                                <div className="mb-4 inline-block rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 p-3">
+                                    <Database className="h-8 w-8 text-white" />
+                                </div>
+                                <h2 className="mb-2 text-xl font-semibold text-white">
+                                    Database
+                                </h2>
+                                <p className="text-sm text-slate-300">
+                                    Secure and scalable data storage with PostgreSQL
+                                </p>
+                                <div className="mt-4 flex items-center text-sm font-medium text-blue-400 transition-all group-hover:translate-x-1">
+                                    View Data →
+                                </div>
                             </div>
-                            <h2 className="mb-2 text-xl font-semibold text-white">
-                                Database
-                            </h2>
-                            <p className="text-sm text-slate-300">
-                                Secure and scalable data storage with PostgreSQL
-                            </p>
-                            <div className="mt-4 flex items-center text-sm font-medium text-blue-400 transition-all group-hover:translate-x-1">
-                                View Data →
-                            </div>
-                        </div>
-                    </Link>
+                        </Link>
+                    )}
 
                     {/* Chat Interface Card */}
                     <Link href="/chatbot">
@@ -93,7 +114,7 @@ export default function Home() {
                     </Link>
 
                     {/* Admin Hierarchy Card */}
-                    <Link href="/dashboard/admin">
+                    <Link href="/hierarchy">
                         <div className="group cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-xl transition-all duration-300 hover:scale-[1.05] hover:border-orange-400/50 hover:bg-white/10">
                             <div className="mb-4 inline-block rounded-full bg-gradient-to-br from-orange-500 to-red-500 p-3">
                                 <Network className="h-8 w-8 text-white" />

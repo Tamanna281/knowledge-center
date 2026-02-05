@@ -33,13 +33,18 @@ export default function OrgNode({
   node,
   isLast = true,
   searchQuery = '',
-  existingRoles = [] // 2. Accept the list of roles
+  existingRoles = [], // 2. Accept the list of roles
+  userPrivileges = [] // Current user's privileges
 }: {
   node: OrgUser,
   isLast?: boolean,
   searchQuery?: string,
-  existingRoles?: RoleOption[] // Type definition
+  existingRoles?: RoleOption[], // Type definition
+  userPrivileges?: string[] // Current user's privileges
 }) {
+  // Check privileges
+  const canAddUser = userPrivileges.includes('ADD_USER')
+  const canDeleteUser = userPrivileges.includes('DELETE_USER')
   const [isOpen, setIsOpen] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -160,8 +165,8 @@ export default function OrgNode({
                 )}
               </div>
 
-              {/* ACTIONS: Protect ROOT Admin and all ADMINs */}
-              {!isEditing && !isAdmin && node.email !== 'bhavya.jn2804@gmail.com' && (
+              {/* ACTIONS: Protect ROOT Admin and all ADMINs, check privileges */}
+              {!isEditing && !isAdmin && node.email !== 'bhavya.jn2804@gmail.com' && canDeleteUser && (
                 <div className="flex gap-1 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => e.stopPropagation()}>
                   <button onClick={() => setIsEditing(true)} className="p-2 text-gray-400 hover:text-blue-600">
                     <Pencil size={14} />
@@ -174,12 +179,15 @@ export default function OrgNode({
             </div>
           </div>
 
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className={`p-2 rounded-full transition-colors relative z-10 ${showAddForm ? 'bg-gray-200 text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-600'}`}
-          >
-            {showAddForm ? <X size={14} /> : <Plus size={14} />}
-          </button>
+          {/* Only show add button if user has ADD_USER privilege */}
+          {canAddUser && (
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className={`p-2 rounded-full transition-colors relative z-10 ${showAddForm ? 'bg-gray-200 text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-600'}`}
+            >
+              {showAddForm ? <X size={14} /> : <Plus size={14} />}
+            </button>
+          )}
         </div>
 
         {showAddForm && (
@@ -198,6 +206,7 @@ export default function OrgNode({
                 isLast={index === children.length - 1}
                 searchQuery={searchQuery}
                 existingRoles={existingRoles} // 4. Pass roles down recursively
+                userPrivileges={userPrivileges} // Pass privileges down recursively
               />
             ))}
           </div>
