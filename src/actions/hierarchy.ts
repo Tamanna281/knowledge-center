@@ -24,7 +24,7 @@ export async function getHierarchy() {
 
     if (allUsers.length === 0) {
       console.warn('⚠️ No users found in database! Did you run the seed script?')
-      return []
+      return { tree: [], totalUsers: 0 }
     }
 
     const userMap = new Map<string, User>()

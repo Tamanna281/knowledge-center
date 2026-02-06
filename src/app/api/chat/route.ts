@@ -310,11 +310,11 @@ export async function POST(request: NextRequest) {
 
         const keywordFilters = keywords.map((keyword) => ({
             OR: [
-                { content: { contains: keyword, mode: "insensitive" } },
-                { title: { contains: keyword, mode: "insensitive" } },
-                { tags: { contains: keyword, mode: "insensitive" } },
-                { category: { contains: keyword, mode: "insensitive" } },
-                { fileName: { contains: keyword, mode: "insensitive" } },
+                { content: { contains: keyword, mode: "insensitive" as const } },
+                { title: { contains: keyword, mode: "insensitive" as const } },
+                { tags: { contains: keyword, mode: "insensitive" as const } },
+                { category: { contains: keyword, mode: "insensitive" as const } },
+                { fileName: { contains: keyword, mode: "insensitive" as const } },
             ],
         }));
 
@@ -404,19 +404,19 @@ export async function POST(request: NextRequest) {
         const groupToken = questionTokens.find((token) => GROUP_HINTS.has(token));
         const groupField = groupToken
             ? fields.find(
-                  (field) =>
-                      field.tokens.includes(groupToken) && field.stringCount >= field.numericCount
-              )
+                (field) =>
+                    field.tokens.includes(groupToken) && field.stringCount >= field.numericCount
+            )
             : undefined;
 
         const rowsWithNumbers = numericField
             ? candidates.reduce((acc, item) => {
-                  const value = item.parsed ? toNumber(item.parsed[numericField.key]) : null;
-                  if (value !== null) {
-                      acc.push({ value, item });
-                  }
-                  return acc;
-              }, [] as { value: number; item: any }[])
+                const value = item.parsed ? toNumber(item.parsed[numericField.key]) : null;
+                if (value !== null) {
+                    acc.push({ value, item });
+                }
+                return acc;
+            }, [] as { value: number; item: any }[])
             : [];
 
         if (intent !== "lookup") {
@@ -433,11 +433,9 @@ export async function POST(request: NextRequest) {
                     const value =
                         intent === "avg" ? total / rowsWithNumbers.length : total;
                     return NextResponse.json({
-                        answer: `The ${intent === "avg" ? "average" : "total"} ${
-                            numericField.key
-                        } is ${formatNumber(value)} based on ${rowsWithNumbers.length} matching record${
-                            rowsWithNumbers.length === 1 ? "" : "s"
-                        }.`,
+                        answer: `The ${intent === "avg" ? "average" : "total"} ${numericField.key
+                            } is ${formatNumber(value)} based on ${rowsWithNumbers.length} matching record${rowsWithNumbers.length === 1 ? "" : "s"
+                            }.`,
                     });
                 }
 
@@ -465,13 +463,11 @@ export async function POST(request: NextRequest) {
                         const topGroup = sortedGroups[0];
                         if (topGroup) {
                             return NextResponse.json({
-                                answer: `${topGroup[0]} has the ${
-                                    intent === "max" ? "highest" : "lowest"
-                                } ${numericField.key} (total ${formatNumber(
-                                    topGroup[1].total
-                                )} across ${topGroup[1].count} record${
-                                    topGroup[1].count === 1 ? "" : "s"
-                                }).`,
+                                answer: `${topGroup[0]} has the ${intent === "max" ? "highest" : "lowest"
+                                    } ${numericField.key} (total ${formatNumber(
+                                        topGroup[1].total
+                                    )} across ${topGroup[1].count} record${topGroup[1].count === 1 ? "" : "s"
+                                    }).`,
                             });
                         }
                     }
@@ -482,11 +478,10 @@ export async function POST(request: NextRequest) {
                     const best = sortedRows[0];
                     if (best) {
                         return NextResponse.json({
-                            answer: `The ${
-                                intent === "max" ? "highest" : "lowest"
-                            } ${numericField.key} I found is ${formatNumber(
-                                best.value
-                            )}. ${summarizeRow(best.item.row)}`,
+                            answer: `The ${intent === "max" ? "highest" : "lowest"
+                                } ${numericField.key} I found is ${formatNumber(
+                                    best.value
+                                )}. ${summarizeRow(best.item.row)}`,
                         });
                     }
                 }

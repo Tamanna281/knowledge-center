@@ -72,7 +72,7 @@ export default function AddUserForm({
                 name="newRoleName"
                 placeholder="New Role Name (e.g. Data Analyst)"
                 required={isNewRole}
-                className="p-1.5 border-b border-gray-300 text-sm outline-none focus:border-blue-500 placeholder:text-gray-400 sticky top-0 bg-white z-10"
+                className="p-1.5 border-b border-gray-300 text-sm text-black outline-none focus:border-blue-500 placeholder:text-gray-400 sticky top-0 bg-white z-10"
               />
 
               {/* 1. Core Privileges */}

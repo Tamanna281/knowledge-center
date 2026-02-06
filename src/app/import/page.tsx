@@ -16,6 +16,15 @@ export default function ImportPage() {
     const [uploadStatus, setUploadStatus] = useState<UploadStatus>({ status: 'idle' });
     const [isDragging, setIsDragging] = useState(false);
 
+    const isValidFile = (file: File): boolean => {
+        const validTypes = [
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'text/csv'
+        ];
+        return validTypes.includes(file.type) || file.name.endsWith('.csv') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+    };
+
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(true);
@@ -53,15 +62,6 @@ export default function ImportPage() {
 
     const removeFile = (index: number) => {
         setFiles(prev => prev.filter((_, i) => i !== index));
-    };
-
-    const isValidFile = (file: File): boolean => {
-        const validTypes = [
-            'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'text/csv'
-        ];
-        return validTypes.includes(file.type) || file.name.endsWith('.csv') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
     };
 
     const handleUpload = async () => {
