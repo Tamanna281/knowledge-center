@@ -16,7 +16,6 @@ async function main() {
     users.forEach(u => {
         console.log(`  - ${u.email} | ${u.name} (${u.username || 'no username'}) | Role: ${u.role.name} | Active: ${u.isActive}`)
     })
-
 }
 
 main()
