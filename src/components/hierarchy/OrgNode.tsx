@@ -56,6 +56,9 @@ export default function OrgNode({
   // Check privileges - only allow if in subtree or admin
   const canAddUser = (isAdmin || (userPrivileges.includes('ADD_USER') && nodeIsInSubtree))
   const canDeleteUser = (isAdmin || (userPrivileges.includes('DELETE_USER') && nodeIsInSubtree))
+  const [isOpen, setIsOpen] = useState(true)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
 
   const children = node.children || []
   const isNodeAdmin = node.role.name === 'ADMIN'
@@ -64,16 +67,8 @@ export default function OrgNode({
   const isDirectMatch = searchQuery && node.name.toLowerCase().includes(searchQuery.toLowerCase())
   const isChildMatch = searchQuery && children.some(child => hasMatch(child, searchQuery))
 
-  // Initialize isOpen based on search state to avoid setState in effect
-  const [isOpen, setIsOpen] = useState(() => !searchQuery || (searchQuery && isChildMatch))
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
-
-  // Update isOpen when search changes
   useEffect(() => {
     if (searchQuery && isChildMatch) {
-      setIsOpen(true)
-    } else if (!searchQuery) {
       setIsOpen(true)
     }
   }, [searchQuery, isChildMatch])
