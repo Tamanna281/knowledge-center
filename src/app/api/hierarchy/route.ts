@@ -36,10 +36,42 @@ export async function GET() {
             }, { status: 403 })
         }
 
-        // Fetch hierarchy data
-        const users = await prisma.user.findMany({
+        // ===== ORGANIZATION-SPECIFIC FILTERING =====
+        // Helper: Recursively get all users under a manager
+        function getUsersInTree(managerId: string | null, allUsers: any[]): Set<string> {
+            const userIds = new Set<string>()
+            const directReports = allUsers.filter(u => u.managerId === managerId)
+
+            for (const user of directReports) {
+                userIds.add(user.id)
+                const subordinates = getUsersInTree(user.id, allUsers)
+                subordinates.forEach(id => userIds.add(id))
+            }
+
+            return userIds
+        }
+
+        // Fetch ALL users
+        const allUsers = await prisma.user.findMany({
             include: { role: true }
         })
+
+        // Filter users based on organization
+        let users: any[]
+
+        if (currentUser.role?.name === 'ADMIN' && currentUser.managerId === null) {
+            // ADMIN with no manager = root of their own organization
+            // Only show users in THEIR tree
+            const allowedUserIds = getUsersInTree(currentUser.id, allUsers)
+            allowedUserIds.add(currentUser.id) // Include self
+
+            users = allUsers.filter(u => allowedUserIds.has(u.id))
+
+            console.log(`🔹 Admin ${currentUser.email} viewing their org: ${users.length} user(s)`)
+        } else {
+            // Non-root users see all
+            users = allUsers
+        }
 
         // Build hierarchy tree
         const userMap = new Map()

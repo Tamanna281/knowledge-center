@@ -141,6 +141,16 @@ export async function handleSignup(req: Request) {
 
         const passwordHash = await bcrypt.hash(password, 10)
 
+        // ===== ADMIN ORGANIZATION HIERARCHY =====
+        // ADMIN users create their own independent organization
+        // Force managerId to null for ADMIN, regardless of any provided value
+        let finalManagerId = managerId || null
+
+        if (role?.toUpperCase() === 'ADMIN') {
+            finalManagerId = null
+            console.log('🔹 ADMIN signup detected - creating independent organization (managerId forced to null)')
+        }
+
         const user = await prisma.user.create({
             data: {
                 username,
@@ -149,13 +159,16 @@ export async function handleSignup(req: Request) {
                 phone,
                 password: passwordHash,
                 roleId: finalRoleId,
-                managerId: managerId || null,
+                managerId: finalManagerId,
                 // TODO: Change these to false in production and require OTP verification
                 emailVerified: true,  // Auto-verify for development
                 phoneVerified: true,  // Auto-verify for development
                 isActive: true        // Auto-activate for development
             }
         })
+
+        console.log(`✅ User created: ${user.email} | Role: ${role} | ManagerID: ${user.managerId}`)
+
 
         // Generate and Send OTPs
         const emailOtp = generateOtp()
