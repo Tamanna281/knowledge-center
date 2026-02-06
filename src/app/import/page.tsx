@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, X, Plus } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, X } from 'lucide-react';
 import { chatApi } from '@/lib/api';
 
 interface UploadStatus {
@@ -16,15 +16,6 @@ export default function ImportPage() {
     const [uploadStatus, setUploadStatus] = useState<UploadStatus>({ status: 'idle' });
     const [isDragging, setIsDragging] = useState(false);
 
-    const isValidFile = (file: File): boolean => {
-        const validTypes = [
-            'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'text/csv'
-        ];
-        return validTypes.includes(file.type) || file.name.endsWith('.csv') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
-    };
-
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(true);
@@ -34,6 +25,15 @@ export default function ImportPage() {
         e.preventDefault();
         setIsDragging(false);
     }, []);
+
+    const isValidFile = (file: File): boolean => {
+        const validTypes = [
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'text/csv'
+        ];
+        return validTypes.includes(file.type) || file.name.endsWith('.csv') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+    };
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
