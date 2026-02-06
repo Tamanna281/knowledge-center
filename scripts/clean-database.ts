@@ -15,10 +15,6 @@ async function main() {
     const deletedUsers = await prisma.user.deleteMany({})
     console.log(`✅ Deleted ${deletedUsers.count} users from User table`)
 
-    // Delete all admins
-    const deletedAdmins = await prisma.admin.deleteMany({})
-    console.log(`✅ Deleted ${deletedAdmins.count} admins from Admin table`)
-
     console.log('\n✨ Database cleaned! Run `npm run seed` to add fresh test data.')
 }
 

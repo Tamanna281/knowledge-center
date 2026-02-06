@@ -23,13 +23,6 @@ async function main() {
 
     console.log(`✅ Deleted ${deletedUser.count} user(s) from User table`)
 
-    // Also check Admin table
-    const deletedAdmin = await prisma.admin.deleteMany({
-        where: { email: emailToDelete }
-    })
-
-    console.log(`✅ Deleted ${deletedAdmin.count} admin(s) from Admin table`)
-
     console.log('\n✨ Done! You can now signup with this email again.')
 }
 

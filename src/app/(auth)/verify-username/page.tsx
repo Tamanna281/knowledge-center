@@ -1,10 +1,10 @@
 "use client"
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import api from '@/lib/api'
 import { getApiErrorMessage } from '@/lib/errors'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function VerifyUsernamePage() {
+function VerifyUsernameContent() {
     const router = useRouter()
     const search = useSearchParams()
     const identifier = search.get('identifier') || ''
@@ -66,5 +66,13 @@ export default function VerifyUsernamePage() {
                 )}
             </div>
         </div>
+    )
+}
+
+export default function VerifyUsernamePage() {
+    return (
+        <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading...</div>}>
+            <VerifyUsernameContent />
+        </Suspense>
     )
 }

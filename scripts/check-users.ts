@@ -16,16 +16,6 @@ async function main() {
     users.forEach(u => {
         console.log(`  - ${u.email} | ${u.name} (${u.username || 'no username'}) | Role: ${u.role.name} | Active: ${u.isActive}`)
     })
-
-    console.log('\n')
-
-    // Check Admin table
-    const admins = await prisma.admin.findMany()
-
-    console.log(`📋 Admin Table (${admins.length} admins):`)
-    admins.forEach(a => {
-        console.log(`  - ${a.email} | ${a.username} | Active: ${a.isActive}`)
-    })
 }
 
 main()

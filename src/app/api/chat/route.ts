@@ -310,11 +310,11 @@ export async function POST(request: NextRequest) {
 
         const keywordFilters = keywords.map((keyword) => ({
             OR: [
-                { content: { contains: keyword, mode: "insensitive" } },
-                { title: { contains: keyword, mode: "insensitive" } },
-                { tags: { contains: keyword, mode: "insensitive" } },
-                { category: { contains: keyword, mode: "insensitive" } },
-                { fileName: { contains: keyword, mode: "insensitive" } },
+                { content: { contains: keyword, mode: "insensitive" as any } },
+                { title: { contains: keyword, mode: "insensitive" as any } },
+                { tags: { contains: keyword, mode: "insensitive" as any } },
+                { category: { contains: keyword, mode: "insensitive" as any } },
+                { fileName: { contains: keyword, mode: "insensitive" as any } },
             ],
         }));
 

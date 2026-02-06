@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
         }
 
         let totalRecords = 0;
-        const processedFiles = [];
+        const processedFiles: string[] = [];
 
         for (const file of files) {
             if (file.size > MAX_FILE_SIZE) {

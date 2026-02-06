@@ -32,10 +32,6 @@ export default function HierarchyPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    useEffect(() => {
-        fetchHierarchy()
-    }, [])
-
     const fetchHierarchy = async () => {
         try {
             const response = await axios.get('/api/hierarchy', {
@@ -55,6 +51,11 @@ export default function HierarchyPage() {
             setLoading(false)
         }
     }
+
+    useEffect(() => {
+        fetchHierarchy()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     // Check privileges
     const canAddUser = userPrivileges.includes('ADD_USER')
