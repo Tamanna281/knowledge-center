@@ -79,6 +79,10 @@ export async function handleSignup(req: Request) {
         const body = await req.json()
         const { username, name, email, phone, password, role, roleId, managerId } = body
 
+        if (role !== 'ADMIN') {
+            return NextResponse.json({ message: 'Signup is restricted to Administrators only.' }, { status: 403 })
+        }
+
         // Use username as name if name not provided
         const finalName = name || username
 
@@ -98,7 +102,16 @@ export async function handleSignup(req: Request) {
         })
 
         if (existingUser) {
-            return NextResponse.json({ message: 'User already exists' }, { status: 400 })
+            if (existingUser.email.toLowerCase() === email.toLowerCase()) {
+                return NextResponse.json({ message: 'Email is already registered' }, { status: 400 })
+            }
+            if (username && existingUser.username?.toLowerCase() === username.toLowerCase()) {
+                return NextResponse.json({ message: 'Username is already taken' }, { status: 400 })
+            }
+            if (phone && existingUser.phone === phone) {
+                return NextResponse.json({ message: 'Phone number is already registered' }, { status: 400 })
+            }
+            return NextResponse.json({ message: 'User already exists with these details' }, { status: 400 })
         }
 
         // Convert role name to roleId if role is provided as a string
@@ -631,4 +644,3 @@ export async function handleUserProfile(req: NextRequest) {
         return response
     }
 }
-
