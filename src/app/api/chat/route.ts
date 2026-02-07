@@ -124,7 +124,7 @@ const GROUP_HINTS = new Set([
 
 const MIN_KEYWORD_LENGTH = 3;
 
-const tokenize = (text: string) => text.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+const tokenize = (text: string): string[] => text.toLowerCase().match(/[a-z0-9]+/g) || [];
 
 const isGreeting = (question: string) => {
     const tokens = tokenize(question).filter((token) => token.length >= 2);
