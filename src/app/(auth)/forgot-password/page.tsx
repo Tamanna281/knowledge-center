@@ -16,7 +16,7 @@ export default function ForgotPasswordPage() {
         setError('')
         setMessage('')
         try {
-            await api.post('/forgot-password', { email })
+            await api.post('/auth/forgot-password', { email })
             setMessage('OTP sent to your email. Check your inbox.')
         } catch (err: unknown) {
             setError(getApiErrorMessage(err, 'Request failed'))
@@ -41,6 +41,7 @@ export default function ForgotPasswordPage() {
                             className="mt-1 w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
+                            suppressHydrationWarning
                         />
                     </div>
                     <button

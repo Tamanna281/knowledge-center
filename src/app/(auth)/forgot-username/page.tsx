@@ -19,7 +19,7 @@ export default function ForgotUsernamePage() {
         try {
             // determine whether it's email or phone
             const isEmail = identifier.includes('@')
-            await api.post('/forgot-username', isEmail ? { email: identifier } : { phone: identifier })
+            await api.post('/auth/forgot-username', isEmail ? { email: identifier } : { phone: identifier })
             setMessage('OTP sent. Proceed to verify.')
             router.push(`/verify-username?identifier=${encodeURIComponent(identifier)}`)
         } catch (err: unknown) {
@@ -46,6 +46,7 @@ export default function ForgotUsernamePage() {
                             value={identifier}
                             onChange={(e) => setIdentifier(e.target.value)}
                             placeholder="you@example.com or +123456789"
+                            suppressHydrationWarning
                         />
                     </div>
                     <button

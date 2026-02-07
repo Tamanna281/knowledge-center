@@ -49,6 +49,7 @@ export default function LoginPage() {
                             className="mt-1 w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            suppressHydrationWarning
                         />
                     </div>
                     <div>
@@ -60,12 +61,14 @@ export default function LoginPage() {
                                 className="w-full p-2 pr-10 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
                                 value={formData.password}
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                suppressHydrationWarning
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
                                 className="absolute inset-y-0 right-2 flex items-center px-2 text-gray-500"
                                 aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                suppressHydrationWarning
                             >
                                 {showPassword ? (
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
