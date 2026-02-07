@@ -2,8 +2,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const API_KEYS = loadApiKeys();
+// Lazy check: Do not throw at module level to allow build to pass without keys
 if (API_KEYS.length === 0) {
-    throw new Error('No GOOGLE_API_KEY_* values found in environment variables');
+    console.warn('⚠️ No GOOGLE_API_KEY_* found. Gemini calls will fail unless keys are added.');
 }
 
 let apiKeyCursor = 0;
@@ -35,6 +36,11 @@ export async function generateWithGemini(
 
     const totalAttempts = maxRetries + 1;
     const keyCount = API_KEYS.length;
+
+    if (keyCount === 0) {
+        throw new Error('No GOOGLE_API_KEY_* values found in environment variables');
+    }
+
     const startIndex = apiKeyCursor % keyCount;
     apiKeyCursor = (apiKeyCursor + 1) % keyCount;
 
@@ -102,7 +108,7 @@ export async function extractStructuredData<T>(
         const hasHowMany = lc.includes('how many') || lc.includes('how much');
         const hasWhich = lc.includes('which ');
         const isDataQuestion = hasHowMany || hasWhich;
-        
+
         if (!isDataQuestion) {
             const nonDataSignals = ['think', 'predict', 'opinion', 'vision', 'policy', 'how do i', 'how to', 'tell me about', 'what is the company', 'delete', 'reset'];
             for (const s of nonDataSignals) {
