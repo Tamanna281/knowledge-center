@@ -1,0 +1,1051 @@
+Version: 0.0.1 | Updated: 07-02-2026 | 14:58
+==================================================
+
+# Project Structure:
+├── .env.local
+├── .gitignore
+├── .qodo
+│   ├── agents
+│   └── workflows
+├── App.tsx
+├── README.md
+├── components
+│   ├── ChartRenderer.tsx
+│   ├── MessageBubble.tsx
+│   └── Sidebar.tsx
+├── constants.ts
+├── index.html
+├── index.tsx
+├── metadata.json
+├── services
+│   └── geminiService.ts
+├── tsconfig.json
+├── types.ts
+├── utils
+│   └── fileUtils.ts
+└── vite.config.ts
+
+
+
+# Path: App.tsx
+
+import React, { useState, useRef, useEffect } from 'react';
+import Sidebar from './components/Sidebar';
+import MessageBubble from './components/MessageBubble';
+import { AppState, Message, UploadedFile } from './types';
+import { sendMessageToGemini } from './services/geminiService';
+import { Send, Menu, FileBarChart, Loader2, Download } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+
+export default function App() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [state, setState] = useState<AppState>({
+    files: [],
+    messages: [
+      {
+        id: 'welcome',
+        role: 'assistant',
+        content: 'Hello. I am your secure corporate data analyst. Please upload your company documents (CSV, JSON, TXT) via the sidebar. Once uploaded, I can answer questions and generate graphical reports based solely on that data.',
+        timestamp: Date.now(),
+      }
+    ],
+    isLoading: false,
+    apiKey: process.env.API_KEY || null,
+  });
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [state.messages]);
+
+  const handleFilesAdded = (newFiles: UploadedFile[]) => {
+    setState(prev => ({
+      ...prev,
+      files: [...prev.files, ...newFiles],
+      messages: [
+        ...prev.messages,
+        {
+          id: Date.now().toString(),
+          role: 'system',
+          content: `System: ${newFiles.length} file(s) added to context.`,
+          timestamp: Date.now(),
+        }
+      ]
+    }));
+  };
+
+  const handleFileRemove = (id: string) => {
+    setState(prev => ({
+      ...prev,
+      files: prev.files.filter(f => f.id !== id)
+    }));
+  };
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!inputMessage.trim() || !state.apiKey) return;
+
+    if (state.files.length === 0) {
+      alert("Please upload company data files first.");
+      return;
+    }
+
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: inputMessage,
+      timestamp: Date.now(),
+    };
+
+    setState(prev => ({
+      ...prev,
+      messages: [...prev.messages, userMsg],
+      isLoading: true
+    }));
+    setInputMessage('');
+
+    try {
+      // Pass the *entire* conversation history including the new user message
+      // Filter out system messages for the API call if desired, or map them correctly
+      const historyForApi = [...state.messages, userMsg].filter(m => m.role !== 'system');
+      
+      const response = await sendMessageToGemini(historyForApi, state.files, state.apiKey);
+      
+      const botMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: response.text,
+        chart: response.chart,
+        timestamp: Date.now(),
+      };
+
+      setState(prev => ({
+        ...prev,
+        messages: [...prev.messages, botMsg],
+        isLoading: false
+      }));
+
+    } catch (error) {
+      console.error(error);
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        messages: [...prev.messages, {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: "I encountered an error processing your request. Please check the console or try again.",
+          timestamp: Date.now()
+        }]
+      }));
+    }
+  };
+
+  const handleDownloadReport = async () => {
+    const element = document.getElementById('chat-container');
+    if (!element) return;
+
+    setIsGeneratingPdf(true);
+
+    try {
+      // Capture the element using html2canvas
+      // We set windowHeight to scrollHeight to capture the full scrolling area
+      const canvas = await html2canvas(element, {
+        scale: 2, // Higher scale for better quality
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#f8fafc', // Match app background (bg-slate-50)
+        height: element.scrollHeight, 
+        windowHeight: element.scrollHeight
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      
+      // Calculate aspect ratio to fit image width to PDF width
+      const ratio = pdfWidth / imgWidth;
+      const imgHeightInPdf = imgHeight * ratio;
+
+      // Logic to handle multi-page PDF for long chat history
+      let heightTracker = imgHeightInPdf;
+      let yPos = 0;
+
+      // Add first page
+      pdf.addImage(imgData, 'PNG', 0, yPos, pdfWidth, imgHeightInPdf);
+      heightTracker -= pageHeight;
+
+      // Add subsequent pages if content is longer than one page
+      while (heightTracker > 0) {
+        yPos -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, yPos, pdfWidth, imgHeightInPdf);
+        heightTracker -= pageHeight;
+      }
+
+      pdf.save('DataGlow_Report.pdf');
+
+    } catch (err) {
+      console.error("PDF Generation Error", err);
+      alert("Failed to generate PDF. Please try again.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  // If no API key is present (shouldn't happen given the instructions, but good for safety)
+  if (!state.apiKey) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-slate-50">
+        <div className="text-center p-8">
+          <h1 className="text-2xl font-bold text-red-600 mb-2">Configuration Error</h1>
+          <p className="text-slate-600">API Key is missing from the environment variables.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div id="app-wrapper" className="flex h-full w-full bg-slate-50 overflow-hidden relative">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/50 z-10"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <Sidebar 
+        files={state.files} 
+        onFilesAdded={handleFilesAdded} 
+        onFileRemove={handleFileRemove}
+        isOpen={isSidebarOpen}
+      />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col h-full w-full relative print-only-full-width">
+        
+        {/* Header */}
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10 no-print">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 lg:hidden"
+            >
+              <Menu size={20} />
+            </button>
+            <div className="flex items-center gap-2 text-slate-800">
+              <FileBarChart className="text-blue-600" size={24} />
+              <h2 className="font-semibold text-lg">Analytics Dashboard</h2>
+            </div>
+          </div>
+          
+          <button
+            onClick={handleDownloadReport}
+            disabled={isGeneratingPdf}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg transition-colors shadow-sm"
+            title="Download Report as PDF"
+          >
+            {isGeneratingPdf ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+            <span className="whitespace-nowrap">{isGeneratingPdf ? 'Generating...' : 'Save Report'}</span>
+          </button>
+        </header>
+
+        {/* Chat Area */}
+        <div 
+          id="chat-container"
+          className="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth bg-slate-50"
+        >
+          <div className="max-w-4xl mx-auto space-y-2">
+            {state.messages
+              .filter(m => m.role !== 'system')
+              .map((msg) => (
+                <MessageBubble key={msg.id} message={msg} />
+            ))}
+            
+            {state.isLoading && (
+              <div className="flex justify-start w-full mb-6 animate-pulse">
+                <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-2xl rounded-tl-none shadow-sm border border-slate-100">
+                  <Loader2 className="animate-spin text-blue-500" size={16} />
+                  <span className="text-xs text-slate-500 font-medium">Analyzing company data...</span>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* Input Area */}
+        <div className="bg-white border-t border-slate-200 p-4 shrink-0 no-print">
+          <div className="max-w-4xl mx-auto">
+            <form onSubmit={handleSendMessage} className="relative flex items-center gap-2">
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                placeholder={state.files.length > 0 ? "Ask a question about the data or request a chart..." : "Upload files to start..."}
+                className="w-full pl-4 pr-12 py-3.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm text-slate-800 placeholder:text-slate-400"
+                disabled={state.isLoading}
+              />
+              <button
+                type="submit"
+                disabled={!inputMessage.trim() || state.isLoading}
+                className="absolute right-2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-colors shadow-md"
+              >
+                <Send size={18} />
+              </button>
+            </form>
+            <div className="text-center mt-2">
+               <p className="text-[10px] text-slate-400">
+                AI can make mistakes. Please verify important information.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+# Path: constants.ts
+
+export const SYSTEM_INSTRUCTION_TEMPLATE = `
+You are DataGlow, a specialized internal company data analyst. 
+Your goal is to answer questions strictly based on the provided company documents.
+
+STRICT RULES:
+1. **ONLY** use the information provided in the "Company Data Context" section below.
+2. If the answer is not found in the context, strictly state: "I cannot find this information in the uploaded company documents." Do not hallucinate or use outside knowledge.
+3. Be professional, concise, and accurate.
+4. If the user asks for a graphical report, chart, or visualization, you MUST generate a valid JSON object representing the chart data at the END of your text response.
+5. The JSON for charts must be wrapped in a code block labeled 'json'.
+6. If the user asks for a PDF, generate the content as usual and instruct them to click the "Print / Save PDF" button in the top header.
+
+CHART JSON FORMAT:
+\`\`\`json
+{
+  "chart": {
+    "type": "bar" | "line" | "pie" | "area",
+    "title": "Chart Title",
+    "xAxisLabel": "Label for X",
+    "yAxisLabel": "Label for Y",
+    "data": [
+      { "name": "Category A", "value": 120 },
+      { "name": "Category B", "value": 200 }
+    ],
+    "description": "Brief analysis of the chart."
+  }
+}
+\`\`\`
+
+COMPANY DATA CONTEXT:
+{{FILE_CONTEXT}}
+`;
+
+export const MODEL_NAME = 'gemini-3-flash-preview';
+
+
+# Path: index.html
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DataGlow Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      /* Custom scrollbar for webkit */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+      
+      @media print {
+        @page {
+          margin: 1.5cm;
+          size: auto;
+        }
+        
+        /* Reset basic elements */
+        html, body {
+          height: auto !important;
+          overflow: visible !important;
+          background: white !important;
+          color: black !important;
+        }
+
+        /* Hide interface elements */
+        header, .sidebar, form, .no-print, button {
+          display: none !important;
+        }
+
+        /* Ensure the app wrapper doesn't constrain size */
+        #root, #app-wrapper {
+          display: block !important;
+          height: auto !important;
+          width: 100% !important;
+          overflow: visible !important;
+          position: static !important;
+        }
+        
+        /* Target the chat content specifically */
+        #chat-container {
+          display: block !important;
+          position: absolute !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100% !important;
+          height: auto !important;
+          overflow: visible !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          background: white !important;
+        }
+
+        /* Prevent page breaks inside messages and charts */
+        .message-bubble, .recharts-wrapper {
+          break-inside: avoid;
+          page-break-inside: avoid;
+        }
+
+        /* Ensure charts have dimensions */
+        .recharts-responsive-container {
+          width: 100% !important;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "recharts": "https://esm.sh/recharts@^3.7.0",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1",
+    "jspdf": "https://esm.sh/jspdf@^2.5.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-slate-50 text-slate-900 overflow-hidden h-screen w-screen">
+    <div id="root" class="h-full w-full"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
+
+
+# Path: index.tsx
+
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  throw new Error("Could not find root element to mount to");
+}
+
+const root = ReactDOM.createRoot(rootElement);
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+
+# Path: metadata.json
+
+{
+  "name": "DataGlow - Corporate Insight Bot",
+  "description": "A secure, company-specific data analysis chatbot that generates insights and graphical reports from your uploaded documents using Gemini.",
+  "requestFramePermissions": []
+}
+
+
+# Path: README.md
+
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
+
+# Run and deploy your AI Studio app
+
+This contains everything you need to run your app locally.
+
+View your app in AI Studio: https://ai.studio/apps/drive/1dvoQgj0YbWf48ND3hJGR-4-TdzcC6RN4
+
+## Run Locally
+
+**Prerequisites:**  Node.js
+
+
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
+
+
+
+# Path: tsconfig.json
+
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "module": "ESNext",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "skipLibCheck": true,
+    "types": [
+      "node"
+    ],
+    "moduleResolution": "bundler",
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "allowJs": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  }
+}
+
+
+# Path: types.ts
+
+export interface ChartDataPoint {
+  name: string;
+  value: number;
+  [key: string]: any;
+}
+
+export interface ChartConfig {
+  type: 'bar' | 'line' | 'pie' | 'area';
+  title: string;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+  data: ChartDataPoint[];
+  description?: string;
+}
+
+export interface Message {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: number;
+  chart?: ChartConfig;
+  isStreaming?: boolean;
+}
+
+export interface UploadedFile {
+  id: string;
+  name: string;
+  type: string;
+  content: string;
+  size: number;
+}
+
+export interface AppState {
+  files: UploadedFile[];
+  messages: Message[];
+  isLoading: boolean;
+  apiKey: string | null;
+}
+
+
+# Path: vite.config.ts
+
+import path from 'path';
+import { defineConfig, loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig(({ mode }) => {
+    const env = loadEnv(mode, '.', '');
+    return {
+      server: {
+        port: 3000,
+        host: '0.0.0.0',
+      },
+      plugins: [react()],
+      define: {
+        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+      },
+      resolve: {
+        alias: {
+          '@': path.resolve(__dirname, '.'),
+        }
+      }
+    };
+});
+
+
+
+# Path: components\ChartRenderer.tsx
+
+import React from 'react';
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
+import { ChartConfig } from '../types';
+
+interface ChartRendererProps {
+  config: ChartConfig;
+}
+
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
+  const { type, data, title, xAxisLabel, yAxisLabel, description } = config;
+
+  const renderChart = () => {
+    switch (type) {
+      case 'bar':
+        return (
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+            <XAxis dataKey="name" label={{ value: xAxisLabel, position: 'insideBottom', offset: -5 }} />
+            <YAxis label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }} />
+            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+            <Legend verticalAlign="top" height={36} />
+            <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]}>
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Bar>
+          </BarChart>
+        );
+      case 'line':
+        return (
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+            <XAxis dataKey="name" label={{ value: xAxisLabel, position: 'insideBottom', offset: -5 }} />
+            <YAxis label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }} />
+            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+            <Legend verticalAlign="top" height={36} />
+            <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+          </LineChart>
+        );
+      case 'area':
+        return (
+          <AreaChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+            <XAxis dataKey="name" label={{ value: xAxisLabel, position: 'insideBottom', offset: -5 }} />
+            <YAxis label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }} />
+            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+            <Legend verticalAlign="top" height={36} />
+            <Area type="monotone" dataKey="value" stroke="#3b82f6" fill="#93c5fd" fillOpacity={0.6} />
+          </AreaChart>
+        );
+      case 'pie':
+        return (
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={100}
+              fill="#8884d8"
+              paddingAngle={5}
+              dataKey="value"
+            >
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+            <Legend verticalAlign="bottom" height={36} />
+          </PieChart>
+        );
+      default:
+        return <div>Unsupported chart type</div>;
+    }
+  };
+
+  return (
+    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 my-4 w-full max-w-2xl mx-auto break-inside-avoid">
+      <h3 className="text-lg font-semibold text-slate-800 mb-2 text-center">{title}</h3>
+      <div className="h-72 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          {renderChart()}
+        </ResponsiveContainer>
+      </div>
+      {description && (
+        <p className="text-sm text-slate-500 mt-4 text-center italic border-t pt-2 border-slate-100">
+          {description}
+        </p>
+      )}
+    </div>
+  );
+};
+
+export default ChartRenderer;
+
+
+
+# Path: components\MessageBubble.tsx
+
+import React from 'react';
+import { Message } from '../types';
+import ChartRenderer from './ChartRenderer';
+import { Bot, User, Download } from 'lucide-react';
+
+interface MessageBubbleProps {
+  message: Message;
+}
+
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
+  const isBot = message.role === 'assistant';
+
+  return (
+    <div className={`flex w-full mb-6 message-bubble ${isBot ? 'justify-start' : 'justify-end'}`}>
+      <div className={`flex max-w-[90%] md:max-w-[80%] gap-3 ${isBot ? 'flex-row' : 'flex-row-reverse'}`}>
+        
+        {/* Avatar */}
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isBot ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+          {isBot ? <Bot size={18} /> : <User size={18} />}
+        </div>
+
+        {/* Bubble */}
+        <div className={`flex flex-col ${isBot ? 'items-start' : 'items-end'}`}>
+          <div 
+            className={`px-5 py-3.5 rounded-2xl shadow-sm text-sm leading-relaxed whitespace-pre-wrap ${
+              isBot 
+                ? 'bg-white border border-slate-100 text-slate-800 rounded-tl-none' 
+                : 'bg-blue-600 text-white rounded-tr-none'
+            }`}
+          >
+            {message.content}
+          </div>
+
+          {/* Chart Rendering */}
+          {message.chart && (
+            <div className="mt-3 w-full animate-fade-in-up">
+              <ChartRenderer config={message.chart} />
+            </div>
+          )}
+          
+          {/* Timestamp */}
+          <span className="text-[10px] text-slate-400 mt-1 px-1">
+            {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default MessageBubble;
+
+
+# Path: components\Sidebar.tsx
+
+import React, { useRef } from 'react';
+import { UploadedFile } from '../types';
+import { processFile, formatFileSize } from '../utils/fileUtils';
+import { UploadCloud, FileText, Trash2, Database, ShieldCheck } from 'lucide-react';
+
+interface SidebarProps {
+  files: UploadedFile[];
+  onFilesAdded: (newFiles: UploadedFile[]) => void;
+  onFileRemove: (id: string) => void;
+  isOpen: boolean;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ files, onFilesAdded, onFileRemove, isOpen }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles: UploadedFile[] = [];
+      for (let i = 0; i < e.target.files.length; i++) {
+        try {
+          const processed = await processFile(e.target.files[i]);
+          newFiles.push(processed);
+        } catch (err) {
+          console.error("Failed to process file", err);
+          alert(`Failed to upload ${e.target.files[i].name}`);
+        }
+      }
+      onFilesAdded(newFiles);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className={`${isOpen ? 'translate-x-0' : '-translate-x-full'} transform transition-transform duration-300 ease-in-out fixed lg:relative z-20 w-72 h-full bg-slate-900 text-slate-100 flex flex-col shadow-2xl no-print`}>
+      <div className="p-6 border-b border-slate-700">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="bg-blue-600 p-2 rounded-lg">
+            <Database size={24} className="text-white" />
+          </div>
+          <h1 className="text-xl font-bold tracking-tight">DataGlow</h1>
+        </div>
+        <p className="text-xs text-slate-400">Secure Corporate Analytics</p>
+      </div>
+
+      <div className="p-4 flex-1 overflow-y-auto">
+        <div className="mb-6">
+          <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+            <h2 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+              <ShieldCheck size={16} className="text-emerald-400" />
+              Company Data Context
+            </h2>
+            <p className="text-xs text-slate-400 mb-4">
+              Upload sales reports, customer logs, or product sheets (CSV, JSON, TXT, MD). 
+              The bot will <span className="text-emerald-400 font-medium">only</span> answer based on these files.
+            </p>
+            
+            <input
+              type="file"
+              multiple
+              accept=".csv,.txt,.json,.md"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+            />
+            
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors shadow-lg shadow-blue-900/20"
+            >
+              <UploadCloud size={18} />
+              Upload Documents
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider px-1">Active Files ({files.length})</h3>
+          {files.length === 0 ? (
+            <div className="text-center py-8 text-slate-600 border-2 border-dashed border-slate-700 rounded-lg">
+              <p className="text-sm">No files uploaded</p>
+            </div>
+          ) : (
+            files.map((file) => (
+              <div key={file.id} className="group flex items-center justify-between p-3 bg-slate-800 rounded-lg border border-slate-700 hover:border-blue-500/50 transition-all">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <FileText size={18} className="text-blue-400 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-200 truncate">{file.name}</p>
+                    <p className="text-xs text-slate-500">{formatFileSize(file.size)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onFileRemove(file.id)}
+                  className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700 rounded transition-colors opacity-0 group-hover:opacity-100"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+          System Status: Operational
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Sidebar;
+
+
+
+# Path: services\geminiService.ts
+
+import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
+import { Message, UploadedFile, ChartConfig } from '../types';
+import { SYSTEM_INSTRUCTION_TEMPLATE, MODEL_NAME } from '../constants';
+
+let genAIClient: GoogleGenAI | null = null;
+let chatSession: Chat | null = null;
+
+export const initializeGemini = (apiKey: string) => {
+  genAIClient = new GoogleGenAI({ apiKey });
+};
+
+const extractChartJson = (text: string): { cleanedText: string; chart: ChartConfig | undefined } => {
+  // Regex to find JSON block that looks like it contains a "chart" key
+  const jsonRegex = /```json\s*({[\s\S]*?"chart"[\s\S]*?})\s*```/;
+  const match = text.match(jsonRegex);
+
+  if (match && match[1]) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      if (parsed.chart) {
+        // Remove the JSON block from the text to avoid duplication in UI
+        const cleanedText = text.replace(jsonRegex, '').trim();
+        return { cleanedText, chart: parsed.chart };
+      }
+    } catch (e) {
+      console.error("Failed to parse chart JSON", e);
+    }
+  }
+  return { cleanedText: text, chart: undefined };
+};
+
+export const sendMessageToGemini = async (
+  messages: Message[], 
+  files: UploadedFile[], 
+  apiKey: string
+): Promise<{ text: string; chart?: ChartConfig }> => {
+  if (!genAIClient) {
+    initializeGemini(apiKey);
+  }
+
+  if (!genAIClient) throw new Error("Gemini client not initialized");
+
+  // Construct context from files
+  const fileContext = files.map(f => `--- FILE: ${f.name} ---\n${f.content}\n--- END FILE ---`).join('\n\n');
+  const systemInstruction = SYSTEM_INSTRUCTION_TEMPLATE.replace('{{FILE_CONTEXT}}', fileContext || "No files uploaded yet.");
+
+  try {
+    // If chat session doesn't exist or files changed (conceptually we should reset, but for now we just keep chat history)
+    // To strictly follow instructions with updated context, we might need to recreate chat or just send context again.
+    // For this simple RAG, we will start a new chat if it's the first message, 
+    // or just assume the model remembers the system instruction if we set it in the config.
+    // However, the SDK's chat history management is automatic. 
+    
+    // Simplification: We will just use sendMessage with a properly configured chat.
+    // Since systemInstruction is immutable in a chat session usually, we recreate the chat session if context changes significantly?
+    // Actually, best practice for simple RAG in a long chat is to include the context in the system instruction at creation.
+    
+    // We will create a fresh chat instance with full history for every request to ensure context is fresh 
+    // (inefficient for tokens but ensures correctness for this stateless-ish demo approach) 
+    // OR we just use the `systemInstruction` config.
+    
+    // Let's use a single persistent chat session, but if files are empty initially and then added, we might have an issue.
+    // Better strategy: We recreate the chat object if it's null.
+    
+    // Re-initializing chat to ensure system instruction has latest files
+    chatSession = genAIClient.chats.create({
+      model: MODEL_NAME,
+      config: {
+        systemInstruction: systemInstruction,
+        temperature: 0.2, // Low temperature for factual accuracy
+      },
+      history: messages.filter(m => m.role !== 'system').map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      }))
+    });
+
+    const lastUserMessage = messages[messages.length - 1];
+    const response: GenerateContentResponse = await chatSession.sendMessage({ 
+      message: lastUserMessage.content 
+    });
+
+    const rawText = response.text || "I couldn't generate a response.";
+    const { cleanedText, chart } = extractChartJson(rawText);
+
+    return { text: cleanedText, chart };
+
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    return { text: "Error communicating with the AI. Please check your API key or connection." };
+  }
+};
+
+
+
+# Path: utils\fileUtils.ts
+
+import { UploadedFile } from '../types';
+
+export const readFileContent = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      resolve(event.target?.result as string);
+    };
+    reader.onerror = (error) => reject(error);
+    reader.readAsText(file);
+  });
+};
+
+export const processFile = async (file: File): Promise<UploadedFile> => {
+  try {
+    const content = await readFileContent(file);
+    return {
+      id: Math.random().toString(36).substring(7),
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      content: content,
+    };
+  } catch (error) {
+    console.error("Error reading file", error);
+    throw error;
+  }
+};
+
+export const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+

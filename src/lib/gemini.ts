@@ -26,16 +26,16 @@ export async function generateWithGemini(
     config: GeminiConfig = {}
 ): Promise<string> {
     const {
-        model = 'gemini-2.5-flash-lite',
+        model = 'gemini-2.0-flash-lite',
         temperature = 0.1, // Low temperature for structured output
-        maxOutputTokens = 1024,
+        maxOutputTokens = 2048, // Increased for chart data
         maxRetries = 2,
         retryBaseMs = 750,
         retryMaxMs = 8000,
     } = config;
 
-    const totalAttempts = maxRetries + 1;
     const keyCount = API_KEYS.length;
+    const totalAttempts = Math.max(maxRetries + 1, keyCount);
 
     if (keyCount === 0) {
         throw new Error('No GOOGLE_API_KEY_* values found in environment variables');
