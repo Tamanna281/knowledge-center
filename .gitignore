@@ -23,10 +23,11 @@ yarn-error.log*
 .env
 .env*.local
 .env.local
+.env.example
 .env.development.local
 .env.test.local
 .env.production.local
-.env.*
+.env*
 
 
 # Vercel
@@ -101,3 +102,8 @@ temp/
 
 # Scripts that may contain sensitive info
 fix_db.bat
+
+*.md
+*.pdf
+*.docx
+*.txt   

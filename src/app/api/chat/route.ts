@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { generateWithGemini } from "@/lib/gemini";
+import { generateLLMResponse } from "@/lib/llmFallback";
 import {
     INSIGHT_SYSTEM_PROMPT,
     InsightResponse,
@@ -306,10 +306,11 @@ Based ONLY on the retrieved context above, provide a structured analytical insig
 
         const fullPrompt = `${INSIGHT_SYSTEM_PROMPT}\n\n${userPrompt}`;
 
-        const response = await generateWithGemini(fullPrompt, {
-            temperature: 0.3,
-            maxOutputTokens: 2500, // Increased for comprehensive insights with charts
-        });
+        // Use multi-provider LLM fallback system (Gemini → Groq → Ollama)
+        const result = await generateLLMResponse(fullPrompt);
+        const response = result.text;
+        
+        console.log(`[Chat Route] Generated response using: ${result.provider} (${result.model})`);
 
         // Parse JSON response
         const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -327,42 +328,39 @@ Based ONLY on the retrieved context above, provide a structured analytical insig
     } catch (error: any) {
         console.error("Error generating insight from context:", error);
 
-        // --- LOCAL INTELLIGENCE FALLBACK (for 429 Quota Errors) ---
-        const isQuotaError = error.status === 429 || String(error).includes('429') || String(error).includes('quota');
+        // --- LOCAL INTELLIGENCE FALLBACK (when all LLM providers fail) ---
+        // At this point, Gemini → Groq → Ollama have all failed
+        console.warn("⚠️ All LLM providers failed. Entering 'Local Intelligence Mode'...");
 
-        if (isQuotaError) {
-            console.warn("⚠️ Gemini Quota Exceeded. Entering 'Local Intelligence Mode'...");
+        const { extractNumericDataFromContext, suggestChartType } = await import('@/lib/chart-debug');
+        const numericData = extractNumericDataFromContext(retrievedContext);
+        const chartType = suggestChartType(question, numericData.length);
 
-            const { extractNumericDataFromContext, suggestChartType } = await import('@/lib/chart-debug');
-            const numericData = extractNumericDataFromContext(retrievedContext);
-            const chartType = suggestChartType(question, numericData.length);
-
-            return {
-                type: "insight",
-                keyInsight: `[Local Intelligence Mode] Based on your documents, I found ${recordCount} relevant records. Note: AI interpretation is currently limited due to API quota.`,
-                sections: [
-                    {
-                        title: "Extracted Data points",
-                        items: retrievedContext.split('\n').filter(l => l.includes(':')).slice(0, 5)
-                    },
-                    {
-                        title: "System Status",
-                        items: ["API Quota Reached: Using local heuristic extraction.", "Charts generated from raw value mapping."]
-                    }
-                ],
-                analyticalSummary: "This analysis was generated locally using statistical extraction because the AI provider's rate limit was reached.",
-                dataPoints: {
-                    totalRecords: recordCount,
-                    relevanceScore: "medium"
+        return {
+            type: "insight",
+            keyInsight: `[Local Intelligence Mode] Based on your documents, I found ${recordCount} relevant records. Note: AI interpretation is currently limited as all LLM providers are unavailable.`,
+            sections: [
+                {
+                    title: "Extracted Data points",
+                    items: retrievedContext.split('\n').filter(l => l.includes(':')).slice(0, 5)
                 },
-                chart: numericData.length >= 2 ? {
-                    type: chartType || 'bar',
-                    title: `Extracted Data: ${question}`,
-                    data: numericData,
-                    description: "Diagram generated via local heuristic extraction."
-                } : undefined
-            };
-        }
+                {
+                    title: "System Status",
+                    items: ["All LLM Providers Unavailable: Using local heuristic extraction.", "Charts generated from raw value mapping."]
+                }
+            ],
+            analyticalSummary: "This analysis was generated locally using statistical extraction because all LLM providers are unavailable.",
+            dataPoints: {
+                totalRecords: recordCount,
+                relevanceScore: "medium"
+            },
+            chart: numericData.length >= 2 ? {
+                type: chartType || 'bar',
+                title: `Extracted Data: ${question}`,
+                data: numericData,
+                description: "Diagram generated via local heuristic extraction."
+            } : undefined
+        };
 
         return createFallbackInsight(retrievedContext);
     }

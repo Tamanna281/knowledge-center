@@ -26,7 +26,7 @@ export async function generateWithGemini(
     config: GeminiConfig = {}
 ): Promise<string> {
     const {
-        model = 'gemini-2.0-flash-lite',
+        model = 'gemini-2.0-flash',  // Updated to valid model. Fallback: gemini-2.0-flash-lite
         temperature = 0.1, // Low temperature for structured output
         maxOutputTokens = 2048, // Increased for chart data
         maxRetries = 2,
