@@ -202,41 +202,41 @@ export default function ChatbotPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 px-6 py-12">
-            <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-                <header className="flex items-center justify-between">
+        <div className="min-h-screen h-screen w-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col overflow-hidden">
+            <div className="flex flex-col h-full w-full max-w-full">
+                <header className="flex items-center justify-between px-4 sm:px-6 py-4 shrink-0">
                     <div className="flex-1">
-                        <h1 className="mb-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-5xl font-bold text-transparent">
+                        <h1 className="mb-2 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl sm:text-4xl md:text-5xl font-bold text-transparent">
                             Knowledge Chatbot
                         </h1>
-                        <p className="text-lg text-slate-300">
+                        <p className="text-sm sm:text-base md:text-lg text-slate-300">
                             Ask questions about your imported data and get instant answers.
                         </p>
                     </div>
                     <button
                         onClick={downloadReport}
                         disabled={isGeneratingPdf || messages.length <= 1}
-                        className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {isGeneratingPdf ? (
                             <>
                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                Generating...
+                                <span className="hidden sm:inline">Generating...</span>
                             </>
                         ) : (
                             <>
                                 <Download className="h-4 w-4" />
-                                Save Report
+                                <span className="hidden sm:inline">Save Report</span>
                             </>
                         )}
                     </button>
                 </header>
 
-                <div className="flex flex-col rounded-2xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
+                <div className="flex-1 flex flex-col rounded-t-2xl border border-white/10 bg-white/5 mx-2 sm:mx-4 md:mx-6 shadow-2xl backdrop-blur-xl overflow-hidden">
                     <div
                         id="chat-container"
                         ref={chatContainerRef}
-                        className="flex h-[60vh] flex-col gap-4 overflow-y-auto pr-2 bg-white/5 rounded-xl p-4"
+                        className="flex-1 flex flex-col gap-4 overflow-y-auto p-3 sm:p-4 md:p-6 bg-white/5"
                         style={{ backgroundColor: '#0f172a' }}
                     >
                         {messages.map((message) => {
@@ -250,13 +250,13 @@ export default function ChatbotPage() {
                                     className={`flex ${isUser ? "justify-end" : "justify-start"}`}
                                 >
                                     <div
-                                        className={`max-w-[85%] rounded-2xl border px-4 py-3 shadow-lg break-words whitespace-pre-wrap ${isUser
+                                        className={`w-full sm:max-w-[85%] rounded-2xl border px-3 sm:px-4 py-3 shadow-lg break-words whitespace-pre-wrap ${isUser
                                             ? "border-purple-400/30"
                                             : "border-white/10"
                                             }`}
                                         style={{
-                                            backgroundColor: isUser ? '#581c87' : '#1e293b', // purple-900 : slate-800 (Explicit Hex)
-                                            color: isUser ? '#ffffff' : '#f1f5f9' // white : slate-100 (Explicit Hex)
+                                            backgroundColor: isUser ? '#581c87' : '#1e293b',
+                                            color: isUser ? '#ffffff' : '#f1f5f9'
                                         }}
                                     >
                                         <div
@@ -275,7 +275,7 @@ export default function ChatbotPage() {
                                                     <Bot className="h-4 w-4" />
                                                 )}
                                             </span>
-                                            <div className="text-sm leading-relaxed flex-1">
+                                            <div className="text-xs sm:text-sm leading-relaxed flex-1">
                                                 {isUser ? (
                                                     <p>{message.content}</p>
                                                 ) : hasInsight && message.insight ? (
@@ -356,19 +356,19 @@ export default function ChatbotPage() {
                                                             switch (part.type) {
                                                                 case "heading1":
                                                                     return (
-                                                                        <h1 key={idx} className="text-xl font-bold text-white mt-4 mb-2">
+                                                                        <h1 key={idx} className="text-lg sm:text-xl font-bold text-white mt-4 mb-2">
                                                                             {part.content}
                                                                         </h1>
                                                                     );
                                                                 case "heading2":
                                                                     return (
-                                                                        <h2 key={idx} className="text-lg font-bold text-emerald-300 mt-3 mb-2">
+                                                                        <h2 key={idx} className="text-base sm:text-lg font-bold text-emerald-300 mt-3 mb-2">
                                                                             {part.content}
                                                                         </h2>
                                                                     );
                                                                 case "heading3":
                                                                     return (
-                                                                        <h3 key={idx} className="text-base font-semibold text-purple-300 mt-2 mb-1">
+                                                                        <h3 key={idx} className="text-sm sm:text-base font-semibold text-purple-300 mt-2 mb-1">
                                                                             {part.content}
                                                                         </h3>
                                                                     );
@@ -423,22 +423,22 @@ export default function ChatbotPage() {
                             event.preventDefault();
                             sendMessage();
                         }}
-                        className="mt-6 flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3"
+                        className="p-3 sm:p-4 md:p-6 flex items-center gap-3 rounded-b-xl border-t border-white/10 bg-white/5"
                     >
                         <input
                             value={input}
                             onChange={(event) => setInput(event.target.value)}
                             placeholder="Ask about your data..."
-                            className="flex-1 bg-transparent text-sm text-white placeholder:text-slate-400 focus:outline-none"
+                            className="flex-1 bg-transparent text-xs sm:text-sm text-white placeholder:text-slate-400 focus:outline-none px-2"
                             disabled={isLoading}
                         />
                         <button
                             type="submit"
                             disabled={!input.trim() || isLoading}
-                            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <Send className="h-4 w-4" />
-                            {isLoading ? "Sending..." : "Send"}
+                            <span className="hidden sm:inline">{isLoading ? "Sending..." : "Send"}</span>
                         </button>
                     </form>
                 </div>
