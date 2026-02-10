@@ -22,15 +22,19 @@ const getTwilioClient = () => {
 export const sendEmailOtp = async (email: string, otp: string) => {
     const user = process.env.GMAIL_USER?.trim()
     const pass = process.env.GMAIL_PASS?.trim()
+
+    // In production, failure to have credentials should be an error.
+    // In dev, we might want to mock, but for this specific issue (OTP not sending),
+    // we want to catch the configuration error.
     if (!user || !pass) {
-        console.log(`[MOCK EMAIL] Missing Env Config. OTP for ${email}: ${otp}`)
-        return true
+        console.error(`[EMAIL ERROR] Missing Env Config. Cannot send OTP to ${email}`)
+        return false
     }
 
     const transporter = getTransporter()
     if (!transporter) {
-        console.log(`[MOCK EMAIL] Transporter not configured. OTP for ${email}: ${otp}`)
-        return true
+        console.error(`[EMAIL ERROR] Transporter not configured. Cannot send OTP to ${email}`)
+        return false
     }
 
     try {

@@ -12,7 +12,7 @@ export default function SignupPage() {
         email: '',
         phone: '',
         password: '',
-        role: 'USER'
+        role: 'ADMIN'
     })
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
@@ -40,17 +40,7 @@ export default function SignupPage() {
                 <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Create Account</h2>
                 {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">{error}</div>}
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Role</label>
-                        <select
-                            value={formData.role}
-                            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                            className="mt-1 w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
-                        >
-                            <option value="USER">User</option>
-                            <option value="ADMIN">Admin</option>
-                        </select>
-                    </div>
+                    {/* Role selection removed - defaulting to ADMIN */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Username</label>
                         <input

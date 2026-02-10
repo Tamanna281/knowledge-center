@@ -9,7 +9,7 @@ export function middleware(request: NextRequest) {
 
     // Protected routes pattern (home page requires auth but doesn't redirect)
     const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/chatbot') || pathname.startsWith('/import') || pathname.startsWith('/database') || pathname.startsWith('/hierarchy')
-    const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/verify') || pathname.startsWith('/forgot') || pathname.startsWith('/reset')
+    const isAuthRoute = pathname.startsWith('/login')
 
     // If accessing root without token, redirect to login
     if (pathname === '/' && !token) {

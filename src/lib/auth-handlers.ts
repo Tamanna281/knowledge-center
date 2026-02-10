@@ -79,6 +79,10 @@ export async function handleSignup(req: Request) {
         const body = await req.json()
         const { username, name, email, phone, password, role, roleId, managerId } = body
 
+        if (role !== 'ADMIN') {
+            return NextResponse.json({ message: 'Signup is restricted to Administrators only.' }, { status: 403 })
+        }
+
         // Use username as name if name not provided
         const finalName = name || username
 
@@ -98,7 +102,16 @@ export async function handleSignup(req: Request) {
         })
 
         if (existingUser) {
-            return NextResponse.json({ message: 'User already exists' }, { status: 400 })
+            if (existingUser.email.toLowerCase() === email.toLowerCase()) {
+                return NextResponse.json({ message: 'Email is already registered' }, { status: 400 })
+            }
+            if (username && existingUser.username?.toLowerCase() === username.toLowerCase()) {
+                return NextResponse.json({ message: 'Username is already taken' }, { status: 400 })
+            }
+            if (phone && existingUser.phone === phone) {
+                return NextResponse.json({ message: 'Phone number is already registered' }, { status: 400 })
+            }
+            return NextResponse.json({ message: 'User already exists with these details' }, { status: 400 })
         }
 
         // Convert role name to roleId if role is provided as a string
@@ -141,6 +154,16 @@ export async function handleSignup(req: Request) {
 
         const passwordHash = await bcrypt.hash(password, 10)
 
+        // ===== ADMIN ORGANIZATION HIERARCHY =====
+        // ADMIN users create their own independent organization
+        // Force managerId to null for ADMIN, regardless of any provided value
+        let finalManagerId = managerId || null
+
+        if (role?.toUpperCase() === 'ADMIN') {
+            finalManagerId = null
+            console.log('🔹 ADMIN signup detected - creating independent organization (managerId forced to null)')
+        }
+
         const user = await prisma.user.create({
             data: {
                 username,
@@ -149,13 +172,16 @@ export async function handleSignup(req: Request) {
                 phone,
                 password: passwordHash,
                 roleId: finalRoleId,
-                managerId: managerId || null,
+                managerId: finalManagerId,
                 // TODO: Change these to false in production and require OTP verification
                 emailVerified: true,  // Auto-verify for development
                 phoneVerified: true,  // Auto-verify for development
                 isActive: true        // Auto-activate for development
             }
         })
+
+        console.log(`✅ User created: ${user.email} | Role: ${role} | ManagerID: ${user.managerId}`)
+
 
         // Generate and Send OTPs
         const emailOtp = generateOtp()
@@ -170,7 +196,10 @@ export async function handleSignup(req: Request) {
             }
         })
 
-        await sendEmailOtp(email, emailOtp)
+        const emailSent = await sendEmailOtp(email, emailOtp)
+        if (!emailSent) {
+            return NextResponse.json({ message: 'Failed to send verification email.' }, { status: 500 })
+        }
 
         if (phone) {
             const phoneOtp = generateOtp()
@@ -182,7 +211,12 @@ export async function handleSignup(req: Request) {
                     expiresAt: otpExpires
                 }
             })
-            await sendSmsOtp(phone, phoneOtp)
+            const smsSent = await sendSmsOtp(phone, phoneOtp)
+            if (!smsSent) {
+                // Note: If SMS fails but email succeeded, we might still want to proceed or warn.
+                // For now, let's just log it but not block since email is primary for many flows.
+                console.warn('Failed to send SMS OTP')
+            }
         }
 
         return NextResponse.json({ message: 'User created. Please verify OTP.', userId: user.id }, { status: 201 })
@@ -350,7 +384,10 @@ export async function handleResendOtp(req: Request) {
                     expiresAt: otpExpires
                 }
             })
-            await sendEmailOtp(user.email, otp)
+            const sent = await sendEmailOtp(user.email, otp)
+            if (!sent) {
+                return NextResponse.json({ message: 'Failed to send OTP via Email' }, { status: 500 })
+            }
         } else if (isPhone && (user.phone || phone)) {
             const targetPhone = user.phone || phone
             if (targetPhone) {
@@ -362,7 +399,10 @@ export async function handleResendOtp(req: Request) {
                         expiresAt: otpExpires
                     }
                 })
-                await sendSmsOtp(targetPhone, otp)
+                const sent = await sendSmsOtp(targetPhone, otp)
+                if (!sent) {
+                    return NextResponse.json({ message: 'Failed to send OTP via SMS' }, { status: 500 })
+                }
             }
         } else {
             return NextResponse.json({ message: 'Could not determine OTP destination' }, { status: 400 })
@@ -407,7 +447,10 @@ export async function handleForgotUsername(req: Request) {
                     expiresAt: otpExpires
                 }
             })
-            await sendEmailOtp(user.email, otp)
+            const sent = await sendEmailOtp(user.email, otp)
+            if (!sent) {
+                return NextResponse.json({ message: 'Failed to send Username to Email' }, { status: 500 })
+            }
         } else if (phone && (user.phone || phone)) {
             const targetPhone = user.phone || phone
             if (targetPhone) {
@@ -419,7 +462,10 @@ export async function handleForgotUsername(req: Request) {
                         expiresAt: otpExpires
                     }
                 })
-                await sendSmsOtp(targetPhone, otp)
+                const sent = await sendSmsOtp(targetPhone, otp)
+                if (!sent) {
+                    return NextResponse.json({ message: 'Failed to send Username to SMS' }, { status: 500 })
+                }
             }
         } else {
             return NextResponse.json({ message: 'No valid destination for OTP' }, { status: 400 })
@@ -618,4 +664,3 @@ export async function handleUserProfile(req: NextRequest) {
         return response
     }
 }
-

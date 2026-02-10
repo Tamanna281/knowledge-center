@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { generateLLMResponse } from "@/lib/llmFallback";
+import { analyticsRouter, RouterResponse } from "@/lib/analyticsRouter";
+import {
+    INSIGHT_SYSTEM_PROMPT,
+    InsightResponse,
+    validateInsight,
+    createFallbackInsight,
+} from "@/lib/insight-prompt";
+
+// Simple in-memory cache to reduce API calls (max 100 entries)
+const responseCache = new Map<string, any>();
+const MAX_CACHE_SIZE = 100;
 
 const FALLBACK_MESSAGE =
-    "I'm sorry, I don't have any information about that, Please ask another question.";
+    "I'm sorry, I don't have any information about that in your knowledge base. Please try a more specific question or mention a particular field, category, or metric.";
 
 const STOPWORDS = new Set([
     "a",
@@ -123,8 +135,7 @@ const GROUP_HINTS = new Set([
 ]);
 
 const MIN_KEYWORD_LENGTH = 3;
-
-const tokenize = (text: string) => text.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+const tokenize = (text: string): string[] => text.toLowerCase().match(/[a-z0-9]+/g) || [];
 
 const isGreeting = (question: string) => {
     const tokens = tokenize(question).filter((token) => token.length >= 2);
@@ -277,6 +288,35 @@ const scoreFieldTokens = (fieldTokens: string[], questionTokens: string[]) => {
 const formatNumber = (value: number) =>
     new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value);
 
+/**
+ * Generate structured insight from retrieved context using the Analytics Router
+ * Transforms the response to match frontend expectations
+ */
+async function generateInsightFromContext(
+    question: string,
+    retrievedContext: string,
+    recordCount: number
+) {
+    const routerResponse = await analyticsRouter(question, retrievedContext, recordCount);
+
+    // Transform RouterResponse to frontend-compatible format
+    if (routerResponse.type === 'text') {
+        // For text responses, return a simple answer
+        return {
+            type: 'text',
+            answer: routerResponse.data.text || "I couldn't generate a response for that."
+        };
+    }
+
+    // For analytics/chart responses, return the insight data with type="insight"
+    // The frontend checks for data?.type === "insight"
+    return {
+        ...routerResponse.data,
+        type: 'insight',  // Frontend expects this
+        answer: routerResponse.data.keyInsight || "Analysis complete."
+    };
+}
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
@@ -290,41 +330,45 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Handle greetings
         if (isGreeting(question)) {
             return NextResponse.json({
+                type: "insight",
                 answer:
-                    "Hi! Ask me about a specific file, field, or value from your uploaded data, and I'll help you find it.",
+                    "## Welcome to Knowledge Analysis\n\nHi! I'm your intelligent data analyst. I'm here to help you extract insights from your uploaded knowledge base.\n\n### How to Get Started\n- **Ask about specific fields**: \"What is the revenue?\" or \"Show me sales data\"\n- **Request calculations**: \"Calculate the average price\" or \"What's the total?\"\n- **Find extremes**: \"Which product has the highest sales?\" or \"Show me the lowest value\"\n- **Get comparisons**: \"Compare sales by region\" or \"Group data by category\"\n\n### Tips\nBe specific with your queries and mention field names from your data. The more details you provide, the better insights I can generate!",
             });
         }
 
+        // Extract keywords
         const tokens = tokenize(question);
-        const intent = detectIntent(tokens);
         const keywords = extractKeywords(question);
 
         if (keywords.length === 0) {
             return NextResponse.json({
+                type: "error",
                 answer:
-                    "I could not find any keywords in your question. Try mentioning a specific field like budget, region, or sales.",
+                    "## Unable to Process Query\n\nI couldn't find any meaningful keywords in your question. Please try rephrasing it with more specific details.\n\n### Suggestions:\n- Mention a specific field name (e.g., \"revenue\", \"price\", \"date\")\n- Use metric keywords like \"total\", \"average\", \"highest\", \"lowest\"\n- Include category names from your data\n- Ask about a specific product, region, or item\n\nExample: Instead of 'tell me about the database', try 'what is the average product price?'",
             });
         }
 
+        // Search knowledge base with keyword filters
         const keywordFilters = keywords.map((keyword) => ({
             OR: [
-                { content: { contains: keyword, mode: "insensitive" } },
-                { title: { contains: keyword, mode: "insensitive" } },
-                { tags: { contains: keyword, mode: "insensitive" } },
-                { category: { contains: keyword, mode: "insensitive" } },
-                { fileName: { contains: keyword, mode: "insensitive" } },
+                { content: { contains: keyword, mode: "insensitive" as const } },
+                { title: { contains: keyword, mode: "insensitive" as const } },
+                { tags: { contains: keyword, mode: "insensitive" as const } },
+                { category: { contains: keyword, mode: "insensitive" as const } },
+                { fileName: { contains: keyword, mode: "insensitive" as const } },
             ],
         }));
 
-        const take = 200;
-
+        const take = 10; // Limit to top relevant results
         let results = await prisma.knowledgeBase.findMany({
             where: { AND: keywordFilters },
             take,
         });
 
+        // Fallback to OR search if AND returns nothing
         if (results.length === 0) {
             results = await prisma.knowledgeBase.findMany({
                 where: { OR: keywordFilters },
@@ -332,171 +376,75 @@ export async function POST(request: NextRequest) {
             });
         }
 
+        // No results found
         if (results.length === 0) {
-            return NextResponse.json({ answer: FALLBACK_MESSAGE });
+            return NextResponse.json({
+                type: "error",
+                answer: FALLBACK_MESSAGE,
+            });
         }
 
+        // Score and rank results
         const ranked = results
             .map((row) => {
                 const parsed = parseContent(row.content);
                 const score = scoreRow(row, keywords, parsed);
-                return { row, score, parsed };
+                return { row, score };
             })
             .sort((a, b) => b.score - a.score);
 
-        const minScore = Math.min(2, keywords.length);
-        const scoped = ranked.filter((item) => item.score >= minScore);
+        // Use top-ranked results
+        const topResults = ranked.slice(0, 5).map((item) => item.row);
 
-        const candidates = scoped.length > 0 ? scoped : ranked;
-        const topRows = candidates.slice(0, 3).map((item) => item.row);
-
-        if (topRows.length === 0) {
+        if (topResults.length === 0) {
             return NextResponse.json({ answer: FALLBACK_MESSAGE });
         }
 
-        const questionTokens = tokens.filter((token) => !STOPWORDS.has(token));
-        const fieldStats = new Map<
-            string,
-            {
-                key: string;
-                normalized: string;
-                tokens: string[];
-                numericCount: number;
-                stringCount: number;
-            }
-        >();
+        // Compile context from retrieved documents with structured data
+        const retrievedContext = topResults
+            .map((row, idx) => {
+                const title = row.title || row.fileName || "Document";
+                const content = row.content.substring(0, 1500); // 1.5k char limit per doc
 
-        for (const item of candidates) {
-            if (!item.parsed) continue;
-            for (const [key, value] of Object.entries(item.parsed)) {
-                const normalized = normalizeKey(key);
-                const tokensForKey = normalized ? normalized.split(/\s+/) : [];
-                const existing =
-                    fieldStats.get(key) ||
-                    {
-                        key,
-                        normalized,
-                        tokens: tokensForKey,
-                        numericCount: 0,
-                        stringCount: 0,
-                    };
+                // Try to parse and include structured data for better chart generation
+                const parsed = parseContent(row.content);
+                let structuredData = '';
+                if (parsed) {
+                    const numericFields = Object.entries(parsed)
+                        .filter(([_, value]) => typeof value === 'number' || !isNaN(Number(value)))
+                        .slice(0, 10);
 
-                const numericValue = toNumber(value);
-                if (numericValue !== null) {
-                    existing.numericCount += 1;
-                } else if (value !== null && value !== undefined) {
-                    existing.stringCount += 1;
-                }
-
-                fieldStats.set(key, existing);
-            }
-        }
-
-        const fields = Array.from(fieldStats.values()).map((field) => ({
-            ...field,
-            matchScore: scoreFieldTokens(field.tokens, questionTokens),
-        }));
-
-        const numericField = fields
-            .filter((field) => field.numericCount > 0)
-            .sort((a, b) => b.matchScore - a.matchScore || b.numericCount - a.numericCount)[0];
-
-        const groupToken = questionTokens.find((token) => GROUP_HINTS.has(token));
-        const groupField = groupToken
-            ? fields.find(
-                  (field) =>
-                      field.tokens.includes(groupToken) && field.stringCount >= field.numericCount
-              )
-            : undefined;
-
-        const rowsWithNumbers = numericField
-            ? candidates.reduce((acc, item) => {
-                  const value = item.parsed ? toNumber(item.parsed[numericField.key]) : null;
-                  if (value !== null) {
-                      acc.push({ value, item });
-                  }
-                  return acc;
-              }, [] as { value: number; item: any }[])
-            : [];
-
-        if (intent !== "lookup") {
-            if (intent === "count") {
-                const count = candidates.length;
-                return NextResponse.json({
-                    answer: `I found ${count} matching record${count === 1 ? "" : "s"}.`,
-                });
-            }
-
-            if (numericField && rowsWithNumbers.length > 0) {
-                if (intent === "sum" || intent === "avg") {
-                    const total = rowsWithNumbers.reduce((acc, entry) => acc + entry.value, 0);
-                    const value =
-                        intent === "avg" ? total / rowsWithNumbers.length : total;
-                    return NextResponse.json({
-                        answer: `The ${intent === "avg" ? "average" : "total"} ${
-                            numericField.key
-                        } is ${formatNumber(value)} based on ${rowsWithNumbers.length} matching record${
-                            rowsWithNumbers.length === 1 ? "" : "s"
-                        }.`,
-                    });
-                }
-
-                if (intent === "max" || intent === "min") {
-                    if (groupField) {
-                        const groupTotals = new Map<string, { total: number; count: number }>();
-                        for (const entry of rowsWithNumbers) {
-                            const rawGroup =
-                                entry.item.parsed?.[groupField.key] ?? "Unknown";
-                            const groupLabel = String(rawGroup || "Unknown");
-                            const existing = groupTotals.get(groupLabel) || {
-                                total: 0,
-                                count: 0,
-                            };
-                            existing.total += entry.value;
-                            existing.count += 1;
-                            groupTotals.set(groupLabel, existing);
-                        }
-                        const sortedGroups = Array.from(groupTotals.entries()).sort(
-                            (a, b) =>
-                                intent === "max"
-                                    ? b[1].total - a[1].total
-                                    : a[1].total - b[1].total
-                        );
-                        const topGroup = sortedGroups[0];
-                        if (topGroup) {
-                            return NextResponse.json({
-                                answer: `${topGroup[0]} has the ${
-                                    intent === "max" ? "highest" : "lowest"
-                                } ${numericField.key} (total ${formatNumber(
-                                    topGroup[1].total
-                                )} across ${topGroup[1].count} record${
-                                    topGroup[1].count === 1 ? "" : "s"
-                                }).`,
-                            });
-                        }
-                    }
-
-                    const sortedRows = rowsWithNumbers.sort(
-                        (a, b) => (intent === "max" ? b.value - a.value : a.value - b.value)
-                    );
-                    const best = sortedRows[0];
-                    if (best) {
-                        return NextResponse.json({
-                            answer: `The ${
-                                intent === "max" ? "highest" : "lowest"
-                            } ${numericField.key} I found is ${formatNumber(
-                                best.value
-                            )}. ${summarizeRow(best.item.row)}`,
-                        });
+                    if (numericFields.length > 0) {
+                        structuredData = `\nStructured Data (for charts):\n${numericFields.map(([key, value]) => `  - ${key}: ${value}`).join('\n')}`;
                     }
                 }
-            }
+
+                return `[Document ${idx + 1}] ${title}\n${content}${structuredData}`;
+            })
+            .join("\n\n---\n\n");
+
+        // Check cache first
+        const cacheKey = question.toLowerCase();
+        if (responseCache.has(cacheKey)) {
+            console.log(`✓ Cache hit for question: "${question}"`);
+            return NextResponse.json(responseCache.get(cacheKey));
         }
 
-        const summaries = topRows.map(summarizeRow);
-        const answer = `Here's what I found: ${summaries.join(" ")}`;
+        // Generate insight using Analytics Router
+        const responseData = await generateInsightFromContext(
+            question,
+            retrievedContext,
+            topResults.length
+        );
 
-        return NextResponse.json({ answer });
+        // Store in cache (keep it under MAX_CACHE_SIZE)
+        if (responseCache.size >= MAX_CACHE_SIZE) {
+            const firstKey = responseCache.keys().next().value;
+            responseCache.delete(firstKey);
+        }
+        responseCache.set(cacheKey, responseData);
+
+        return NextResponse.json(responseData);
     } catch (error) {
         console.error("Chat query error:", error);
         return NextResponse.json(

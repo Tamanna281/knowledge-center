@@ -71,6 +71,7 @@ export default function OrgNode({
     if (searchQuery && isChildMatch) {
       setIsOpen(true)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, isChildMatch])
 
   const isDimmed = searchQuery && !isDirectMatch && !isChildMatch
