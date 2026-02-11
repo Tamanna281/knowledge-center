@@ -32,10 +32,6 @@ export default function HierarchyPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    useEffect(() => {
-        fetchHierarchy()
-    }, [])
-
     const fetchHierarchy = async () => {
         try {
             const response = await axios.get('/api/hierarchy', {
@@ -59,6 +55,10 @@ export default function HierarchyPage() {
     // Check privileges
     const canAddUser = userPrivileges.includes('ADD_USER')
     const canDeleteUser = userPrivileges.includes('DELETE_USER')
+
+    useEffect(() => {
+        fetchHierarchy()
+    }, [])
 
     if (loading) {
         return (
