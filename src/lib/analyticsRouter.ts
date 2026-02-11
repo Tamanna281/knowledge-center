@@ -53,22 +53,53 @@ export async function analyticsRouter(
         console.log(`[Analytics Router] Detected intent: ${intent}`);
 
         // 2. Always use the insight engine for better structured responses
-        // The insight engine is smart enough to handle both simple and complex queries
         const analyticalPrompt = `${INSIGHT_SYSTEM_PROMPT}\n\nUser Question: ${question}\n\nRETRIEVED CONTEXT:\n${retrievedContext}\n\nBased ONLY on the retrieved context above, provide a structured analytical insight response.`;
         const result = await generateLLMResponse(analyticalPrompt);
 
-        // Parse the insight response
+        // Parse the insight response with robust error handling
         const jsonMatch = result.text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            // If JSON parsing fails, return the raw text
-            return {
-                type: 'text',
-                data: { text: result.text },
-                message: "Generated response but failed to format as JSON."
-            };
+        let parsedInsight;
+
+        try {
+            if (!jsonMatch) throw new Error("No JSON found");
+            parsedInsight = JSON.parse(jsonMatch[0]);
+        } catch (parseError) {
+            console.warn("[Analytics Router] JSON Parse failed, attempting smart repair...", parseError);
+
+            try {
+                let salvagedText = jsonMatch ? jsonMatch[0] : result.text;
+
+                // --- SMART REPAIR ENGINE ---
+                // 1. Remove trailing junk text after the last potential JSON closing
+                salvagedText = salvagedText.replace(/\n[^\{\}\[\]]*$/, '');
+
+                // 2. Fix unclosed arrays and objects by counting and appending
+                const stack: string[] = [];
+                for (let i = 0; i < salvagedText.length; i++) {
+                    const char = salvagedText[i];
+                    if (char === '{') stack.push('}');
+                    else if (char === '[') stack.push(']');
+                    else if (char === '}' || char === ']') {
+                        if (stack.length > 0 && stack[stack.length - 1] === char) {
+                            stack.pop();
+                        }
+                    }
+                }
+
+                // Append missing closings in reverse order
+                if (stack.length > 0) {
+                    salvagedText += stack.reverse().join('');
+                }
+
+                parsedInsight = JSON.parse(salvagedText);
+                console.log("[Analytics Router] Successfully salvaged JSON!");
+            } catch (salvageError) {
+                console.error("[Analytics Router] JSON Salvage failed. Falling back to local intelligence.");
+                // IF SALVAGE FAILS: We manually build a safe response from the raw text
+                parsedInsight = createFallbackInsight(result.text, retrievedContext);
+            }
         }
 
-        const parsedInsight = JSON.parse(jsonMatch[0]);
         const validatedInsight = validateInsight(parsedInsight);
 
         // Add record count

@@ -8,6 +8,7 @@
 
 import axios, { AxiosError } from 'axios';
 import { generateWithGemini } from './gemini';
+import { llmCache } from './llmCache';
 
 let groqApiKeyCursor = 0;
 
@@ -71,9 +72,11 @@ const API_CONFIG = {
         maxOutputTokens: 2048,
     },
     ollama: {
-        baseUrl: 'http://localhost:11434/api/generate',
-        model: 'llama3.2', // More common/standard than mistral for local dev
+        baseUrl: 'http://127.0.0.1:11434/api/generate',
+        model: 'gemma3:1b', // Switched from llama3.2 to gemma3:1b (much faster for local speed)
         temperature: 0.1,
+        timeout: 60000, // Increased to 60s for safety during heavy data pulls
+        healthCheckTimeout: 3000, // Keep quick health check
     },
 };
 
@@ -153,7 +156,10 @@ export async function callGroq(prompt: string): Promise<string> {
     const startIndex = groqApiKeyCursor % keys.length;
     groqApiKeyCursor = (groqApiKeyCursor + 1) % keys.length;
 
-    for (let attempt = 0; attempt < keys.length; attempt++) {
+    // Limit retries to 2 attempts max for faster fallback
+    const maxAttempts = Math.min(keys.length, 2);
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
         const apiKey = keys[(startIndex + attempt) % keys.length];
 
         try {
@@ -178,7 +184,7 @@ export async function callGroq(prompt: string): Promise<string> {
                         'Authorization': `Bearer ${apiKey}`,
                         'Content-Type': 'application/json',
                     },
-                    timeout: 30000,
+                    timeout: 15000, // Reduced from 30s to 15s
                 }
             );
 
@@ -193,10 +199,10 @@ export async function callGroq(prompt: string): Promise<string> {
             const status = axiosError?.response?.status;
             const message = String(axiosError?.message ?? error ?? '');
 
-            console.error(`[LLM Fallback] Groq error (Attempt ${attempt + 1}) - Status: ${status}, Message: ${message}`);
+            console.error(`[LLM Fallback] Groq error (Attempt ${attempt + 1}/${maxAttempts}) - Status: ${status}, Message: ${message}`);
 
-            // If it's a rate limit error and we have more keys, try the next one
-            if (status === 429 && attempt < keys.length - 1) {
+            // If it's a rate limit error and we have more attempts, try the next one
+            if (status === 429 && attempt < maxAttempts - 1) {
                 continue;
             }
 
@@ -210,25 +216,82 @@ export async function callGroq(prompt: string): Promise<string> {
 }
 
 /**
+ * Quick health check for Ollama service
+ * @returns true if Ollama is responsive, false otherwise
+ */
+async function isOllamaHealthy(): Promise<boolean> {
+    try {
+        const response = await axios.get('http://localhost:11434/api/tags', {
+            timeout: API_CONFIG.ollama.healthCheckTimeout,
+        });
+        return response.status === 200;
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Call local Ollama model for content generation
  * @param prompt The input prompt for content generation
  * @throws Error if API call fails
  */
 export async function callLocal(prompt: string): Promise<string> {
+    // Quick health check before attempting (saves time on failures)
+    const isHealthy = await isOllamaHealthy();
+    if (!isHealthy) {
+        const err = new Error('Ollama service is not running or not responding. Please start Ollama with: ollama serve');
+        (err as any).code = 'LOCAL_MODEL_UNAVAILABLE';
+        throw err;
+    }
+
     try {
+        // SMART COMPRESSION: Local models struggle with massive context.
+        // If the prompt is too long, we keep the system instructions and user question,
+        // but trim the middle (usually the large document context).
+        let processedPrompt = prompt;
+        if (prompt.length > 3000) {
+            console.log(`[LLM Fallback] Compressing prompt for local model (${prompt.length} chars -> 3000 chars)`);
+
+            // Try to extract the question and the most relevant context part
+            const lines = prompt.split('\n');
+            const userQuestion = lines.slice(-5).join('\n'); // Question
+            const context = lines.slice(15, -5).join('\n').substring(0, 1200); // Context
+
+            processedPrompt = `### TASK: ANALYZE DATA & RESPOND IN JSON
+### RULES:
+1. ONLY output valid JSON.
+2. NO conversational text.
+3. Use the keys: "type", "keyInsight", "sections", "analyticalSummary", "chart".
+
+### DATA CONTEXT:
+${context}
+
+### USER REQUEST:
+${userQuestion}
+
+### STRIKE OUTPUT (JSON ONLY):
+{`;
+            processedPrompt = processedPrompt.trim();
+        }
+
         const response = await axios.post(
             API_CONFIG.ollama.baseUrl,
             {
                 model: API_CONFIG.ollama.model,
-                prompt: prompt,
-                temperature: API_CONFIG.ollama.temperature,
+                prompt: processedPrompt,
+                temperature: 0.1, // Keep it precise
                 stream: false,
+                options: {
+                    num_predict: 2048, // Increased from 512 to prevent JSON cutting off
+                    num_ctx: 4096,    // Manageable context window
+                    low_vram: true    // Optimized for consumer hardware
+                }
             },
             {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                timeout: 60000, // Local calls might take longer
+                timeout: API_CONFIG.ollama.timeout,
             }
         );
 
@@ -244,6 +307,13 @@ export async function callLocal(prompt: string): Promise<string> {
         const message = String(axiosError?.message ?? error ?? '');
 
         console.error(`[LLM Fallback] Ollama error - Status: ${status}, Message: ${message}`);
+
+        // Provide helpful error messages
+        if (message.includes('timeout')) {
+            const err = new Error(`Ollama timeout: Model '${API_CONFIG.ollama.model}' took too long to respond. Try: 1) Check if model is pulled: 'ollama list' 2) Pull model: 'ollama pull ${API_CONFIG.ollama.model}' 3) Restart Ollama: 'ollama serve'`);
+            (err as any).code = 'LOCAL_MODEL_UNAVAILABLE';
+            throw err;
+        }
 
         const err = new Error(`Ollama error: ${message}`);
         (err as any).code = 'LOCAL_MODEL_UNAVAILABLE';
@@ -285,6 +355,19 @@ export async function generateLLMResponse(
         throw new Error('Prompt cannot be empty');
     }
 
+    // Check cache first (unless forcing a specific provider for testing)
+    if (!forceProvider) {
+        const cached = llmCache.get(prompt);
+        if (cached) {
+            return {
+                text: cached.text,
+                provider: cached.provider as 'gemini' | 'groq' | 'ollama',
+                model: cached.model,
+                timestamp: cached.timestamp,
+            };
+        }
+    }
+
     const providers = forceProvider
         ? [forceProvider]
         : (['gemini', 'groq', 'ollama'] as const)
@@ -321,12 +404,23 @@ export async function generateLLMResponse(
 
             console.log(`[LLM Fallback] Successfully used provider: ${provider}`);
 
-            return {
+            const response: LLMResponse = {
                 text: text.trim(),
                 provider,
                 model,
                 timestamp: new Date().toISOString(),
             };
+
+            // Cache the successful response
+            llmCache.set(prompt, {
+                text: response.text,
+                provider: response.provider,
+                model: response.model,
+                timestamp: response.timestamp,
+                expiresAt: 0, // Will be set by cache
+            });
+
+            return response;
         } catch (error: any) {
             lastError = error;
             const errorCode = error?.code || '';
