@@ -70,27 +70,16 @@ export default function ChatbotPage() {
     };
 
     const downloadReport = async () => {
-        const element = document.getElementById("chat-container");
-        if (!element) {
-            alert("Could not find chat content to download.");
+        if (messages.length <= 1) {
+            alert("No chat messages to download.");
             return;
         }
 
         setIsGeneratingPdf(true);
 
         try {
-            const { default: html2canvas } = await import("html2canvas");
             const { jsPDF } = await import("jspdf");
 
-            const canvas = await html2canvas(element, {
-                scale: 2,
-                backgroundColor: "#f8fafc",
-                logging: false,
-                allowTaint: true,
-                useCORS: true,
-            });
-
-            const imgData = canvas.toDataURL("image/png");
             const pdf = new jsPDF({
                 orientation: "portrait",
                 unit: "mm",
@@ -99,60 +88,177 @@ export default function ChatbotPage() {
 
             const pageWidth = pdf.internal.pageSize.getWidth();
             const pageHeight = pdf.internal.pageSize.getHeight();
-            const imgWidth = pageWidth - 20;
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            const margin = 15;
+            const contentWidth = pageWidth - margin * 2;
+            let y = margin;
+            let pageNumber = 1;
 
-            let yPosition = 10;
+            const addPageNumber = () => {
+                pdf.setFontSize(8);
+                pdf.setTextColor(150);
+                pdf.text(`Page ${pageNumber}`, pageWidth / 2, pageHeight - 8, { align: "center" });
+            };
 
-            pdf.setFontSize(16);
-            pdf.text("Knowledge Analysis Report", pageWidth / 2, yPosition, { align: "center" });
-            yPosition += 15;
+            const checkPageBreak = (neededHeight: number) => {
+                if (y + neededHeight > pageHeight - 20) {
+                    addPageNumber();
+                    pdf.addPage();
+                    pageNumber++;
+                    y = margin;
+                }
+            };
 
+            const wrapText = (text: string, maxWidth: number): string[] => {
+                const lines: string[] = [];
+                const paragraphs = text.split("\n");
+                for (const para of paragraphs) {
+                    if (para.trim() === "") {
+                        lines.push("");
+                        continue;
+                    }
+                    const wrapped = pdf.splitTextToSize(para, maxWidth);
+                    lines.push(...wrapped);
+                }
+                return lines;
+            };
+
+            // --- Title ---
+            pdf.setFontSize(20);
+            pdf.setTextColor(80, 40, 120);
+            pdf.text("Knowledge Chatbot Report", pageWidth / 2, y, { align: "center" });
+            y += 10;
+
+            // --- Timestamp ---
             pdf.setFontSize(10);
-            pdf.setTextColor(100);
+            pdf.setTextColor(120);
             const timestamp = new Date().toLocaleString();
-            pdf.text(`Generated: ${timestamp}`, pageWidth / 2, yPosition, { align: "center" });
-            yPosition += 10;
+            pdf.text(`Generated: ${timestamp}`, pageWidth / 2, y, { align: "center" });
+            y += 8;
 
-            if (imgHeight > pageHeight - yPosition) {
-                let heightRemaining = imgHeight;
-                let sourceY = 0;
+            // --- Separator line ---
+            pdf.setDrawColor(180);
+            pdf.setLineWidth(0.5);
+            pdf.line(margin, y, pageWidth - margin, y);
+            y += 10;
 
-                while (heightRemaining > 0) {
-                    const heightToPrint = Math.min(pageHeight - 20, heightRemaining);
-                    const sourceHeight = (heightToPrint / imgWidth) * canvas.width;
+            // --- Messages ---
+            const chatMessages = messages.filter((m) => m.id !== "greeting");
 
-                    const croppedCanvas = document.createElement("canvas");
-                    croppedCanvas.width = canvas.width;
-                    croppedCanvas.height = sourceHeight;
+            for (const message of chatMessages) {
+                const isUser = message.role === "user";
+                const roleLabel = isUser ? "You" : "Bot";
+                const hasInsight = message.insight && message.insight.type === "insight";
 
-                    const ctx = croppedCanvas.getContext("2d");
-                    if (ctx) {
-                        ctx.drawImage(canvas, 0, -sourceY, canvas.width, canvas.height);
-                        const croppedImgData = croppedCanvas.toDataURL("image/png");
-                        pdf.addImage(
-                            croppedImgData,
-                            "PNG",
-                            10,
-                            yPosition,
-                            imgWidth,
-                            heightToPrint
-                        );
+                // Estimate space needed
+                checkPageBreak(20);
+
+                // Role label
+                pdf.setFontSize(11);
+                pdf.setFont("helvetica", "bold");
+                pdf.setTextColor(isUser ? 100 : 34, isUser ? 40 : 139, isUser ? 150 : 34);
+                pdf.text(`${roleLabel}:`, margin, y);
+                y += 6;
+
+                // Message content
+                pdf.setFont("helvetica", "normal");
+                pdf.setFontSize(10);
+                pdf.setTextColor(50);
+
+                if (hasInsight && message.insight) {
+                    // Key Insight
+                    if (message.insight.keyInsight) {
+                        checkPageBreak(14);
+                        pdf.setFont("helvetica", "bold");
+                        pdf.setTextColor(0, 128, 90);
+                        pdf.text("Key Insight:", margin + 2, y);
+                        y += 5;
+                        pdf.setFont("helvetica", "normal");
+                        pdf.setTextColor(50);
+                        const insightLines = wrapText(message.insight.keyInsight, contentWidth - 4);
+                        for (const line of insightLines) {
+                            checkPageBreak(5);
+                            pdf.text(line, margin + 4, y);
+                            y += 5;
+                        }
+                        y += 3;
                     }
 
-                    yPosition = 10;
-                    sourceY += sourceHeight;
-                    heightRemaining -= heightToPrint;
+                    // Sections
+                    if (message.insight.sections && message.insight.sections.length > 0) {
+                        for (const section of message.insight.sections) {
+                            checkPageBreak(12);
+                            pdf.setFont("helvetica", "bold");
+                            pdf.setTextColor(80, 40, 120);
+                            pdf.text(section.title, margin + 2, y);
+                            y += 5;
+                            pdf.setFont("helvetica", "normal");
+                            pdf.setTextColor(50);
+                            for (const item of section.items) {
+                                const itemLines = wrapText(`• ${item}`, contentWidth - 8);
+                                for (const line of itemLines) {
+                                    checkPageBreak(5);
+                                    pdf.text(line, margin + 6, y);
+                                    y += 5;
+                                }
+                            }
+                            y += 2;
+                        }
+                    }
 
-                    if (heightRemaining > 0) {
-                        pdf.addPage();
+                    // Analytical Summary
+                    if (message.insight.analyticalSummary) {
+                        checkPageBreak(12);
+                        pdf.setFont("helvetica", "bold");
+                        pdf.setTextColor(40, 80, 160);
+                        pdf.text("Summary:", margin + 2, y);
+                        y += 5;
+                        pdf.setFont("helvetica", "normal");
+                        pdf.setTextColor(50);
+                        const summaryLines = wrapText(message.insight.analyticalSummary, contentWidth - 4);
+                        for (const line of summaryLines) {
+                            checkPageBreak(5);
+                            pdf.text(line, margin + 4, y);
+                            y += 5;
+                        }
+                        y += 3;
+                    }
+
+                    // Data Points
+                    if (message.insight.dataPoints) {
+                        checkPageBreak(8);
+                        pdf.setFontSize(9);
+                        pdf.setTextColor(120);
+                        pdf.text(
+                            `Records: ${message.insight.dataPoints.totalRecords} | Relevance: ${message.insight.dataPoints.relevanceScore}`,
+                            margin + 2,
+                            y
+                        );
+                        y += 5;
+                        pdf.setFontSize(10);
+                    }
+                } else {
+                    // Plain text message
+                    const contentLines = wrapText(message.content, contentWidth - 4);
+                    for (const line of contentLines) {
+                        checkPageBreak(5);
+                        pdf.text(line, margin + 4, y);
+                        y += 5;
                     }
                 }
-            } else {
-                pdf.addImage(imgData, "PNG", 10, yPosition, imgWidth, imgHeight);
+
+                // Separator between messages
+                y += 3;
+                checkPageBreak(5);
+                pdf.setDrawColor(220);
+                pdf.setLineWidth(0.2);
+                pdf.line(margin + 5, y, pageWidth - margin - 5, y);
+                y += 7;
             }
 
-            pdf.save("knowledge-analysis-report.pdf");
+            // Add page number on last page
+            addPageNumber();
+
+            pdf.save("knowledge-chatbot-report.pdf");
         } catch (err) {
             console.error("PDF generation error:", err);
             alert("Failed to generate PDF. Please try again.");
