@@ -17,8 +17,7 @@ export default async function Page({ searchParams }: Props) {
     let errorMessage: string | null = null
 
     try {
-        const result = await getHierarchy()
-        tree = result.tree
+        tree = await getHierarchy()
         console.log('✅ Hierarchy loaded, tree length:', tree.length)
     } catch (error: any) {
         console.error('❌ Failed to fetch hierarchy:', error)

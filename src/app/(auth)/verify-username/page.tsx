@@ -4,7 +4,7 @@ import api from '@/lib/api'
 import { getApiErrorMessage } from '@/lib/errors'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-function VerifyUsernameForm() {
+function VerifyUsernameContent() {
     const router = useRouter()
     const search = useSearchParams()
     const identifier = search.get('identifier') || ''
@@ -71,12 +71,8 @@ function VerifyUsernameForm() {
 
 export default function VerifyUsernamePage() {
     return (
-        <Suspense fallback={
-            <div className="flex min-h-screen items-center justify-center bg-gray-100">
-                <div className="text-gray-600">Loading...</div>
-            </div>
-        }>
-            <VerifyUsernameForm />
+        <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading...</div>}>
+            <VerifyUsernameContent />
         </Suspense>
     )
 }

@@ -64,6 +64,8 @@ export default function ImportPage() {
         setFiles(prev => prev.filter((_, i) => i !== index));
     };
 
+
+
     const handleUpload = async () => {
         if (files.length === 0) return;
 

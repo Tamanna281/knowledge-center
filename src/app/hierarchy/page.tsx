@@ -52,13 +52,13 @@ export default function HierarchyPage() {
         }
     }
 
-    useEffect(() => {
-        fetchHierarchy()
-    }, [])
-
     // Check privileges
     const canAddUser = userPrivileges.includes('ADD_USER')
     const canDeleteUser = userPrivileges.includes('DELETE_USER')
+
+    useEffect(() => {
+        fetchHierarchy()
+    }, [])
 
     if (loading) {
         return (

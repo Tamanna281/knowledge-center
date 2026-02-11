@@ -396,17 +396,20 @@ export async function POST(request: NextRequest) {
         // Use top-ranked results
         const topResults = ranked.slice(0, 5).map((item) => item.row);
 
+        if (topResults.length === 0) {
+            return NextResponse.json({ answer: FALLBACK_MESSAGE });
+        }
+
         // Compile context from retrieved documents with structured data
         const retrievedContext = topResults
             .map((row, idx) => {
                 const title = row.title || row.fileName || "Document";
-                const content = row.content.substring(0, 1500); // Increased limit
+                const content = row.content.substring(0, 1500); // 1.5k char limit per doc
 
-                // Try to parse and include structured data
+                // Try to parse and include structured data for better chart generation
                 const parsed = parseContent(row.content);
                 let structuredData = '';
                 if (parsed) {
-                    // Extract numeric fields for potential chart generation
                     const numericFields = Object.entries(parsed)
                         .filter(([_, value]) => typeof value === 'number' || !isNaN(Number(value)))
                         .slice(0, 10);
