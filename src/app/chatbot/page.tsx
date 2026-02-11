@@ -38,8 +38,82 @@ export default function ChatbotPage() {
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [conversationId, setConversationId] = useState<string | null>(null);
     const endRef = useRef<HTMLDivElement | null>(null);
     const chatContainerRef = useRef<HTMLDivElement | null>(null);
+
+    // Load chat history from localStorage on mount
+    useEffect(() => {
+        const savedMessages = localStorage.getItem("chatMessages");
+        const savedConversationId = localStorage.getItem("conversationId");
+
+        if (savedMessages) {
+            try {
+                const parsed = JSON.parse(savedMessages);
+                if (Array.isArray(parsed) && parsed.length > 1) {
+                    setMessages(parsed);
+                }
+            } catch (error) {
+                console.error("Error loading saved messages:", error);
+            }
+        }
+
+        if (savedConversationId) {
+            setConversationId(savedConversationId);
+        }
+    }, []);
+
+    // Save to localStorage whenever messages change
+    useEffect(() => {
+        if (messages.length > 1) { // Don't save if only greeting
+            localStorage.setItem("chatMessages", JSON.stringify(messages));
+        }
+    }, [messages]);
+
+    // Save to database periodically (debounced)
+    useEffect(() => {
+        if (messages.length <= 1) return; // Don't save greeting-only
+
+        const timeoutId = setTimeout(() => {
+            saveChatToDatabase();
+        }, 3000); // Save 3 seconds after last message
+
+        return () => clearTimeout(timeoutId);
+    }, [messages]);
+
+    const saveChatToDatabase = async () => {
+        try {
+            const messagesToSave = messages.filter(m => m.id !== "greeting");
+            if (messagesToSave.length === 0) return;
+
+            const response = await fetch("/api/chat/history", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    conversationId,
+                    messages: messagesToSave,
+                }),
+            });
+
+            const data = await response.json();
+            if (data.conversationId && !conversationId) {
+                setConversationId(data.conversationId);
+                localStorage.setItem("conversationId", data.conversationId);
+            }
+        } catch (error) {
+            console.error("Error saving to database:", error);
+        }
+    };
+
+    const clearChat = () => {
+        const confirmed = window.confirm("Are you sure you want to clear the chat history?");
+        if (confirmed) {
+            setMessages([{ id: "greeting", role: "bot", content: GREETING_MESSAGE }]);
+            setConversationId(null);
+            localStorage.removeItem("chatMessages");
+            localStorage.removeItem("conversationId");
+        }
+    };
 
     useEffect(() => {
         endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -319,23 +393,33 @@ export default function ChatbotPage() {
                             Ask questions about your imported data and get instant answers.
                         </p>
                     </div>
-                    <button
-                        onClick={downloadReport}
-                        disabled={isGeneratingPdf || messages.length <= 1}
-                        className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        {isGeneratingPdf ? (
-                            <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <span className="hidden sm:inline">Generating...</span>
-                            </>
-                        ) : (
-                            <>
-                                <Download className="h-4 w-4" />
-                                <span className="hidden sm:inline">Save Report</span>
-                            </>
-                        )}
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={clearChat}
+                            disabled={messages.length <= 1}
+                            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-red-500 to-pink-500 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <span className="hidden sm:inline">Clear Chat</span>
+                            <span className="sm:hidden">Clear</span>
+                        </button>
+                        <button
+                            onClick={downloadReport}
+                            disabled={isGeneratingPdf || messages.length <= 1}
+                            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {isGeneratingPdf ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <span className="hidden sm:inline">Generating...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Download className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Save Report</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </header>
 
                 <div className="flex-1 flex flex-col rounded-t-2xl border border-white/10 bg-white/5 mx-2 sm:mx-4 md:mx-6 shadow-2xl backdrop-blur-xl overflow-hidden">
