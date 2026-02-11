@@ -61,6 +61,9 @@ export async function generateWithGemini(
             const result = await geminiModel.generateContent(prompt);
             const response = result.response;
             const text = response.text();
+
+            // On success, update cursor to current working index
+            apiKeyCursor = keyIndex;
             return text;
         } catch (error: any) {
             const message = String(error?.message ?? error ?? '');
@@ -71,10 +74,17 @@ export async function generateWithGemini(
                 message.toLowerCase().includes('too many requests') ||
                 message.toLowerCase().includes('quota');
 
+            // If it's a rate limit error, instantly skip to next key WITHOUT waiting
+            if (isRateLimit && attempt < totalAttempts - 1) {
+                console.warn(`[Gemini] Key ${keyIndex + 1} exhausted (429), rotating instantly...`);
+                continue;
+            }
+
             if (!isRateLimit || attempt === totalAttempts - 1) {
                 throw error;
             }
 
+            // Fallback backoff for non-429 errors or if we've cycled all keys
             const retryAfterMs = parseRetryAfterMs(message);
             const backoffMs = Math.min(retryMaxMs, retryBaseMs * Math.pow(2, attempt));
             const jitterMs = Math.floor(Math.random() * 250);

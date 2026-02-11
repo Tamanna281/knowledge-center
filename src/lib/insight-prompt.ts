@@ -137,19 +137,38 @@ export interface InsightResponse {
 }
 
 /**
- * Fallback insight response for errors
+ * Fallback insight response for errors or malformed LLM output.
+ * Tries to salvage whatever it can from the raw text.
  */
-export function createFallbackInsight(context: string): InsightResponse {
+export function createFallbackInsight(rawText: string, contextSnippet?: string): InsightResponse {
+  // Basic extraction: try to find the first paragraph or the text itself
+  const displayInsight = rawText.split('\n').filter(l => l.trim().length > 10)[0] || "I found relevant information in your documents.";
+
+  // Extract potential list items (lines starting with dash, bullet, or number)
+  const items = rawText
+    .split('\n')
+    .filter(line => /^[\s]*[-•*0-9]/.test(line.trim()))
+    .map(line => line.trim().replace(/^[\s]*[-•*0-9.]+\s*/, ''))
+    .filter(line => line.length > 5)
+    .slice(0, 10);
+
   return {
     type: "insight",
-    keyInsight: context,
+    keyInsight: displayInsight.substring(0, 300),
     sections: [
       {
-        title: "Information Retrieved",
-        items: [context],
+        title: "Retrieved Details",
+        items: items.length > 0 ? items : [
+          "I was able to find document matches but had trouble formatting the full analysis.",
+          "Click to see raw documents or try rephrasing for a chart."
+        ],
       },
+      {
+        title: "System Note",
+        items: ["Response generated via local fallback due to formatting issues."]
+      }
     ],
-    analyticalSummary: "Unable to generate full analysis at this time.",
+    analyticalSummary: "This is a simplified response because the detailed data format could not be processed locally.",
     dataPoints: {
       totalRecords: 1,
       relevanceScore: "medium",
