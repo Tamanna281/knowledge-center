@@ -106,5 +106,6 @@ fix_db.bat
 *.md
 *.pdf
 *.docx
-*.txt   
+*.txt 
+*.csv
 *.sh
