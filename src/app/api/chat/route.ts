@@ -9,9 +9,10 @@ import {
     createFallbackInsight,
 } from "@/lib/insight-prompt";
 
-// Simple in-memory cache to reduce API calls (max 100 entries)
-const responseCache = new Map<string, any>();
-const MAX_CACHE_SIZE = 100;
+
+// Note: In-memory cache removed for development to ensure fresh responses.
+// Can be re-implemented with Redis for production scalability if needed.
+
 
 const FALLBACK_MESSAGE =
     "I'm sorry, I don't have any information about that in your knowledge base. Please try a more specific question or mention a particular field, category, or metric.";
@@ -244,7 +245,7 @@ const scoreRow = (
     parsed: Record<string, unknown> | null
 ) => {
     const fields = [
-        { text: row.title, weight: 4 },
+        { text: row.title, weight: 10 }, // Significantly boosted title weight (from 4 to 10)
         { text: row.fileName ?? "", weight: 3 },
         { text: row.category ?? "", weight: 2 },
         { text: row.tags ?? "", weight: 2 },
@@ -252,22 +253,35 @@ const scoreRow = (
     ];
 
     let score = 0;
+    let uniqueMatches = 0;
 
     for (const keyword of keywords) {
+        let keywordMatched = false;
         let best = 0;
         for (const field of fields) {
             if (field.text && field.text.toLowerCase().includes(keyword)) {
                 best = Math.max(best, field.weight);
+                keywordMatched = true;
             }
         }
         if (parsed) {
             for (const key of Object.keys(parsed)) {
                 if (normalizeKey(key).includes(keyword)) {
                     best = Math.max(best, 2);
+                    keywordMatched = true;
                 }
             }
         }
+
+        if (keywordMatched) uniqueMatches++;
         score += best;
+    }
+
+    // MULTI-KEYWORD BOOST: Heavily favor items that match multiple distinct keywords
+    // This is the "Secret Sauce" for finding ACME Tech Solutions (matching 3 keywords)
+    // over generic machines matching just one keyword ("solutions").
+    if (uniqueMatches > 1) {
+        score += (uniqueMatches * 15); // Huge boost for each additional keyword
     }
 
     return score;
@@ -317,6 +331,79 @@ async function generateInsightFromContext(
     };
 }
 
+// Helper to format machine product into text context
+const formatMachineProduct = (product: any) => {
+    const coreSpecs = [
+        `Model: ${product.modelNumber}`,
+        `Speed: ${product.machineSpeed ? product.machineSpeed + ' ' + (product.speedUnit || '') : 'N/A'}`,
+        `Power: ${product.powerKw ? product.powerKw + ' kW' : 'N/A'}`,
+        `Price (Domestic Avg): ${product.domesticPriceAvg ? '₹' + product.domesticPriceAvg : 'N/A'}`,
+        `Dimensions: ${product.dimensionsP1 || 'N/A'}`,
+        `Category: ${product.productCategory || 'N/A'}`
+    ].join('\n');
+
+    let metadataStr = '';
+    if (product.metadata && typeof product.metadata === 'object') {
+        // limit metadata to avoid token overflow
+        metadataStr = JSON.stringify(product.metadata).slice(0, 500);
+    }
+
+    return `PRODUCT DATA:\n${coreSpecs}\n\nAdditional Details:\n${metadataStr}`;
+};
+
+async function searchKnowledgeBase(keywordFilters: any[]) {
+    // Search KnowledgeBase
+    const take = 100; // Increased significantly to ensure buried matches are found
+    const results = await prisma.knowledgeBase.findMany({
+        where: { OR: keywordFilters },
+        orderBy: { id: 'desc' }, // Favor newer records
+        take,
+    });
+
+    return results.map(row => ({
+        type: 'document',
+        id: row.id.toString(),
+        title: row.title,
+        content: row.content,
+        category: row.category,
+        tags: row.tags,
+        fileName: row.fileName,
+        original: row
+    }));
+}
+
+async function searchMachineProducts(keywords: string[]) {
+    // Search MachineProduct
+    // We construct a specific filter for machine products
+    const take = 15; // Increased to ensure we catch relevant machines even with common keywords
+
+    // Create text search filters
+    const filters = keywords.map(keyword => ({
+        OR: [
+            { productName: { contains: keyword, mode: "insensitive" as const } },
+            { modelNumber: { contains: keyword, mode: "insensitive" as const } },
+            { productCategory: { contains: keyword, mode: "insensitive" as const } },
+            { searchText: { contains: keyword, mode: "insensitive" as const } }
+        ]
+    }));
+
+    const results = await prisma.machineProduct.findMany({
+        where: { OR: filters },
+        take,
+    });
+
+    return results.map(product => ({
+        type: 'machine',
+        id: product.id,
+        title: product.productName,
+        content: formatMachineProduct(product),
+        category: product.productCategory,
+        tags: product.tags.join(', '),
+        fileName: product.sourceFile,
+        original: product
+    }));
+}
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
@@ -335,24 +422,25 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({
                 type: "insight",
                 answer:
-                    "## Welcome to Knowledge Analysis\n\nHi! I'm your intelligent data analyst. I'm here to help you extract insights from your uploaded knowledge base.\n\n### How to Get Started\n- **Ask about specific fields**: \"What is the revenue?\" or \"Show me sales data\"\n- **Request calculations**: \"Calculate the average price\" or \"What's the total?\"\n- **Find extremes**: \"Which product has the highest sales?\" or \"Show me the lowest value\"\n- **Get comparisons**: \"Compare sales by region\" or \"Group data by category\"\n\n### Tips\nBe specific with your queries and mention field names from your data. The more details you provide, the better insights I can generate!",
+                    "## Welcome to NESSCO Intelligence\n\nHi! I can help you with machine specifications, pricing, and comparisons from your product catalog.\n\n### Try asking:\n- **Specs**: \"What is the speed of NS-200?\"\n- **Pricing**: \"Show me the price of paper cup machines\"\n- **Knowledge Base**: \"When was ACME Tech founded?\" or \"Show me the policy on X\"\n- **Technical**: \"Which machines have power < 5kW?\"\n\nI have access to both your Product Catalog and your Knowledge Base documents!",
             });
         }
 
         // Extract keywords
-        const tokens = tokenize(question);
         const keywords = extractKeywords(question);
 
         if (keywords.length === 0) {
             return NextResponse.json({
                 type: "error",
                 answer:
-                    "## Unable to Process Query\n\nI couldn't find any meaningful keywords in your question. Please try rephrasing it with more specific details.\n\n### Suggestions:\n- Mention a specific field name (e.g., \"revenue\", \"price\", \"date\")\n- Use metric keywords like \"total\", \"average\", \"highest\", \"lowest\"\n- Include category names from your data\n- Ask about a specific product, region, or item\n\nExample: Instead of 'tell me about the database', try 'what is the average product price?'",
+                    "I couldn't identify specific keywords to search for. Please try mentioning a Model Number (e.g., NS-220), a Product Name, or specific features like 'speed' or 'power'.",
             });
         }
 
-        // Search knowledge base with keyword filters
-        const keywordFilters = keywords.map((keyword) => ({
+        // --- PARALLEL SEARCH STRATEGY ---
+
+        // 1. Prepare filters for KnowledgeBase
+        const kbFilters = keywords.map((keyword) => ({
             OR: [
                 { content: { contains: keyword, mode: "insensitive" as const } },
                 { title: { contains: keyword, mode: "insensitive" as const } },
@@ -362,73 +450,67 @@ export async function POST(request: NextRequest) {
             ],
         }));
 
-        const take = 10; // Limit to top relevant results
-        let results = await prisma.knowledgeBase.findMany({
-            where: { AND: keywordFilters },
-            take,
-        });
+        // 2. Execute both searches simultaneously
+        const [kbResults, mpResults] = await Promise.all([
+            searchKnowledgeBase(kbFilters),
+            searchMachineProducts(keywords)
+        ]);
 
-        // Fallback to OR search if AND returns nothing
-        if (results.length === 0) {
-            results = await prisma.knowledgeBase.findMany({
-                where: { OR: keywordFilters },
-                take,
-            });
-        }
+        // 3. Combine results
+        const allResults = [...mpResults, ...kbResults];
 
-        // No results found
-        if (results.length === 0) {
+        if (allResults.length === 0) {
             return NextResponse.json({
                 type: "error",
                 answer: FALLBACK_MESSAGE,
             });
         }
 
-        // Score and rank results
-        const ranked = results
-            .map((row) => {
-                const parsed = parseContent(row.content);
-                const score = scoreRow(row, keywords, parsed);
-                return { row, score };
-            })
-            .sort((a, b) => b.score - a.score);
+        // 4. Score and Rank merged results
+        const ranked = allResults
+            .map((item) => {
+                const parsed = parseContent(item.content); // For documents
+                const score = scoreRow(item, keywords, parsed);
 
-        // Use top-ranked results
-        const topResults = ranked.slice(0, 5).map((item) => item.row);
-
-        if (topResults.length === 0) {
-            return NextResponse.json({ answer: FALLBACK_MESSAGE });
-        }
-
-        // Compile context from retrieved documents with structured data
-        const retrievedContext = topResults
-            .map((row, idx) => {
-                const title = row.title || row.fileName || "Document";
-                const content = row.content.substring(0, 1500); // 1.5k char limit per doc
-
-                // Try to parse and include structured data for better chart generation
-                const parsed = parseContent(row.content);
-                let structuredData = '';
-                if (parsed) {
-                    const numericFields = Object.entries(parsed)
-                        .filter(([_, value]) => typeof value === 'number' || !isNaN(Number(value)))
-                        .slice(0, 10);
-
-                    if (numericFields.length > 0) {
-                        structuredData = `\nStructured Data (for charts):\n${numericFields.map(([key, value]) => `  - ${key}: ${value}`).join('\n')}`;
+                // Boost score for exact model number matches in machine products
+                let finalScore = score;
+                if (item.type === 'machine') {
+                    const original = item.original as any;
+                    // Strong boost if model number is in keywords
+                    if (keywords.some(k => original.modelNumber?.toLowerCase() === k)) {
+                        finalScore += 5;
+                    }
+                    // Boost if product name matches
+                    if (keywords.some(k => original.productName?.toLowerCase().includes(k))) {
+                        finalScore += 3;
                     }
                 }
 
-                return `[Document ${idx + 1}] ${title}\n${content}${structuredData}`;
+                return { item, score: finalScore };
+            })
+            .sort((a, b) => b.score - a.score);
+
+        // 5. Select top results
+        const topResults = ranked.slice(0, 6).map((r) => r.item);
+
+        // 6. Build Context
+        const retrievedContext = topResults
+            .map((item, idx) => {
+                const title = item.title || "Unknown Source";
+
+                let contentStr = item.content;
+
+                // For legacy docs, truncate
+                if (item.type === 'document' && contentStr.length > 1500) {
+                    contentStr = contentStr.substring(0, 1500) + "...";
+                }
+
+                return `[Result ${idx + 1}] (${item.type.toUpperCase()}) ${title}\nSource: ${item.fileName}\n${contentStr}`;
             })
             .join("\n\n---\n\n");
 
-        // Check cache first
-        const cacheKey = question.toLowerCase();
-        if (responseCache.has(cacheKey)) {
-            console.log(`✓ Cache hit for question: "${question}"`);
-            return NextResponse.json(responseCache.get(cacheKey));
-        }
+        console.log(`Generated context with ${topResults.length} items (KB: ${kbResults.length}, MP: ${mpResults.length})`);
+
 
         // Generate insight using Analytics Router
         const responseData = await generateInsightFromContext(
@@ -436,13 +518,6 @@ export async function POST(request: NextRequest) {
             retrievedContext,
             topResults.length
         );
-
-        // Store in cache (keep it under MAX_CACHE_SIZE)
-        if (responseCache.size >= MAX_CACHE_SIZE) {
-            const firstKey = responseCache.keys().next().value;
-            responseCache.delete(firstKey);
-        }
-        responseCache.set(cacheKey, responseData);
 
         return NextResponse.json(responseData);
     } catch (error) {

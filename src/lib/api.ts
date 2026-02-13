@@ -17,6 +17,14 @@ export const chatApi = {
             },
         });
         return response.data;
+    },
+    importNesscoData: async (formData: FormData) => {
+        const response = await api.post('/import/nessco', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data;
     }
 }
 

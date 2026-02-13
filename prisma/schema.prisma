@@ -90,3 +90,72 @@ model ChatMessage {
   insightData    String?          @db.Text // JSON stringified insight data
   createdAt      DateTime         @default(now())
 }
+
+// === NESSCO Product/Machine Data ===
+// Flexible schema: Core fields + metadata for dynamic columns
+model MachineProduct {
+  id              String   @id @default(uuid())
+  
+  // === CORE IDENTIFICATION FIELDS (Always present) ===
+  productCategory String?  // e.g., "PAPER CUP MACHINE", "DIE CUTTING MACHINE"
+  productName     String   // e.g., "PCM NS-200 (STANDARD)"
+  modelNumber     String   // e.g., "NS-200", "NS-1900"
+  productId       String?  // Unique product identifier
+  variant         String?  // Model variant
+  productStatus   String?  // "ACTIVE", "INACTIVE", "IN PROGRESS", "CLEARANCE"
+  
+  // === CORE TECHNICAL SPECS (Common queries) ===
+  machineSpeed    Float?   // Speed in pieces/min or meter/min
+  stableSpeed     Float?   // Stable operating speed
+  speedUnit       String?  // "Pcs/Min.", "Meter/Min.", "Bags/Min.", etc.
+  weightKg        Float?   // Machine weight in kilograms
+  powerKw         Float?   // Power consumption in kilowatts
+  
+  // === CORE PRICING (For comparisons) ===
+  domesticPriceMin   Float?
+  domesticPriceMax   Float?
+  domesticPriceAvg   Float?
+  exportPriceMin     Float?
+  exportPriceMax     Float?
+  exportPriceAvg     Float?
+  currency           String?  // "INR", "USD", etc.
+  
+  // === CORE ELECTRICAL SPECS (Safety-critical) ===
+  operatingVoltage   String?  // "380VAC-400VAC", "220VAC"
+  phaseRequirement   String?  // "3P", "1P"
+  startingLoadKw     Float?
+  runningLoadKw      Float?
+  
+  // === SIZE/DIMENSIONS ===
+  dimensionsP1       String?  // e.g., "2700X1100X1828"
+  dimensionsP2       String?
+  dimensionsP3       String?
+  
+  // === FLEXIBLE METADATA (All other columns) ===
+  // This stores ALL columns from CSV/PDF as JSON
+  // Allows for:
+  // 1. New columns without schema changes
+  // 2. Variable CSV structures
+  // 3. Full data preservation
+  metadata           Json?    @db.JsonB
+  
+  // === SOURCE TRACKING ===
+  sourceFile         String   // Original filename
+  sourceType         String   // "CSV", "EXCEL", "PDF"
+  importedAt         DateTime @default(now())
+  
+  // === SEARCH OPTIMIZATION ===
+  searchText         String?  @db.Text  // Concatenated searchable text
+  tags               String[] @default([])
+  
+  // === TIMESTAMPS ===
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  @@index([productCategory])
+  @@index([modelNumber])
+  @@index([productStatus])
+  @@index([machineSpeed])
+  @@index([powerKw])
+  @@index([sourceFile])
+}

@@ -267,6 +267,7 @@ export default function DatabaseClientView({ data }: DatabaseClientViewProps) {
                                         <th className="px-6 py-4 font-semibold">Title / File</th>
                                         <th className="px-6 py-4 font-semibold">Category</th>
                                         <th className="px-6 py-4 font-semibold">Tags</th>
+                                        <th className="px-6 py-4 font-semibold">Source</th>
                                         <th className="px-6 py-4 font-semibold">Date</th>
                                         <th className="px-6 py-4 font-semibold">Actions</th>
                                     </tr>
@@ -295,6 +296,14 @@ export default function DatabaseClientView({ data }: DatabaseClientViewProps) {
                                             <td className="px-6 py-4">
                                                 <span className="truncate max-w-[200px] block" title={item.tags}>
                                                     {item.tags || '-'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${item.sourceTable === 'MachineProduct'
+                                                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                                        : 'bg-slate-500/10 text-slate-400 border border-slate-500/10'
+                                                    }`}>
+                                                    {item.sourceTable === 'MachineProduct' ? 'Product Catalog' : 'Knowledge Base'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-slate-400">
