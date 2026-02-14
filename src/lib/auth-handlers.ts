@@ -6,7 +6,7 @@ import { generateToken, generateOtp, verifyToken } from '@/lib/tokens'
 import { sendEmailOtp, sendSmsOtp } from '@/lib/notifications'
 
 const getErrorMessage = (error: unknown) =>
-    error instanceof Error ? getErrorMessage(error) : 'Unknown error'
+    error instanceof Error ? error.message : 'Unknown error'
 
 // ============================================
 // ADMIN LOGIN
@@ -16,8 +16,17 @@ const getErrorMessage = (error: unknown) =>
 // ============================================
 export async function handleUserLogin(req: NextRequest) {
     try {
-        const body = await req.json()
+        console.log(`[AUTH] login request received`)
+        let body
+        try {
+            body = await req.json()
+        } catch (jsonError) {
+            console.error('[AUTH] Failed to parse request body:', jsonError)
+            return NextResponse.json({ message: 'Invalid request body' }, { status: 400 })
+        }
+
         const { identifier, email, password } = body
+        console.log(`[AUTH] login for ${identifier || email}`)
 
         if (!password) {
             return NextResponse.json({ message: 'Password required' }, { status: 400 })
