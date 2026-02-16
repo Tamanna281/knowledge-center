@@ -627,11 +627,6 @@ export async function handleVerifyOtpUsername(req: Request) {
             return NextResponse.json({ message: 'Invalid or expired OTP' }, { status: 400 })
         }
 
-        // Remove used otp
-        await prisma.otp.delete({
-            where: { id: otpRecord.id }
-        })
-
         // Return username for recovery
         return NextResponse.json({ message: 'OTP verified', username: user.username || user.name })
     } catch (error: unknown) {
@@ -671,5 +666,124 @@ export async function handleUserProfile(req: NextRequest) {
         const response = NextResponse.json({ message: 'Invalid token' }, { status: 403 })
         response.cookies.delete('token')
         return response
+    }
+}
+// ============================================
+// CHANGE USERNAME
+// ============================================
+export async function handleChangeUsername(req: NextRequest) {
+    try {
+        const token = req.cookies.get('token')?.value
+        if (!token) return NextResponse.json({ message: 'Not authenticated' }, { status: 401 })
+
+        const decoded = verifyToken(token) as any
+        const body = await req.json()
+        const { newUsername, otp, type } = body
+
+        if (!newUsername || newUsername.trim() === '') {
+            return NextResponse.json({ message: 'New username is required' }, { status: 400 })
+        }
+
+        if (!otp) {
+            return NextResponse.json({ message: 'Verification OTP is required' }, { status: 400 })
+        }
+
+        // Verify OTP
+        const otpRecord = await prisma.otp.findFirst({
+            where: {
+                userId: decoded.userId,
+                otp,
+                type,
+                expiresAt: { gt: new Date() }
+            }
+        })
+
+        if (!otpRecord) {
+            return NextResponse.json({ message: 'Invalid or expired OTP' }, { status: 400 })
+        }
+
+        // Check if username is already taken
+        const existingUser = await prisma.user.findFirst({
+            where: {
+                username: { equals: newUsername, mode: 'insensitive' }
+            }
+        })
+
+        if (existingUser) {
+            return NextResponse.json({ message: 'Username is already taken' }, { status: 400 })
+        }
+
+        await prisma.user.update({
+            where: { id: decoded.userId },
+            data: { username: newUsername }
+        })
+
+        // Cleanup OTP
+        await prisma.otp.delete({ where: { id: otpRecord.id } })
+
+        return NextResponse.json({ message: 'Username updated successfully', username: newUsername })
+    } catch (error: unknown) {
+        return NextResponse.json({ message: 'Internal server error', error: getErrorMessage(error) }, { status: 500 })
+    }
+}
+// ============================================
+// RESET USERNAME (VIA RECOVERY)
+// ============================================
+export async function handleResetUsername(req: Request) {
+    try {
+        const body = await req.json()
+        const { identifier, otp, type, newUsername } = body
+
+        const user = await prisma.user.findFirst({
+            where: {
+                OR: [
+                    { email: identifier },
+                    { phone: identifier }
+                ]
+            }
+        })
+
+        if (!user) {
+            return NextResponse.json({ message: 'User not found' }, { status: 404 })
+        }
+
+        const otpRecord = await prisma.otp.findFirst({
+            where: {
+                userId: user.id,
+                otp,
+                type,
+                expiresAt: {
+                    gt: new Date()
+                }
+            }
+        })
+
+        if (!otpRecord) {
+            return NextResponse.json({ message: 'Invalid or expired OTP' }, { status: 400 })
+        }
+
+        if (!newUsername || newUsername.trim() === '') {
+            return NextResponse.json({ message: 'New username is required' }, { status: 400 })
+        }
+
+        // Check if new username is taken
+        const existing = await prisma.user.findFirst({
+            where: { username: { equals: newUsername, mode: 'insensitive' } }
+        })
+        if (existing) {
+            return NextResponse.json({ message: 'New username is already taken' }, { status: 400 })
+        }
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { username: newUsername }
+        })
+
+        // Remove OTP
+        await prisma.otp.delete({ where: { id: otpRecord.id } })
+
+        return NextResponse.json({ message: 'Username updated successfully', username: newUsername })
+    } catch (error: unknown) {
+        return NextResponse.json({ message: getErrorMessage(error) }, { status: 500 })
     }
 }

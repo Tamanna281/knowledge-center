@@ -11,7 +11,9 @@ import {
     handleResetPassword,
     handleVerifyOtp,
     handleVerifyOtpUsername,
-    handleUserProfile
+    handleUserProfile,
+    handleChangeUsername,
+    handleResetUsername
 } from '@/lib/auth-handlers'
 
 type RouteContext = {
@@ -61,6 +63,8 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     if (endpoint === 'resend-otp') return handleResendOtp(req)
     if (endpoint === 'verify-otp') return handleVerifyOtp(req)
     if (endpoint === 'verify-otp-username') return handleVerifyOtpUsername(req)
+    if (endpoint === 'change-username') return handleChangeUsername(req)
+    if (endpoint === 'reset-username') return handleResetUsername(req)
 
     return NextResponse.json({ message: 'Endpoint not found' }, { status: 404 })
 }
