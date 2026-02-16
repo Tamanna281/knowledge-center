@@ -1,5 +1,3 @@
-import domtoimage from 'dom-to-image-more';
-
 export interface CaptureOptions {
     width?: number;
     height?: number;
@@ -9,13 +7,14 @@ export interface CaptureOptions {
 /**
  * Reusable utility to capture a DOM element (like a chart) as an image
  * specifically optimized for PDF generation.
- * 
- * Uses dom-to-image-more which handles SVG rendering much better than html2canvas.
  */
 export async function captureChartElement(
     elementId: string,
     options: CaptureOptions = {}
 ): Promise<string | null> {
+    // Dynamic import to prevent SSR build errors
+    const domtoimage = (await import('dom-to-image-more')).default;
+
     const element = document.getElementById(elementId);
     if (!element) {
         console.warn(`Element with ID ${elementId} not found for capture.`);
