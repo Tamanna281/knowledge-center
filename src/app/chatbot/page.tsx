@@ -200,7 +200,7 @@ export default function ChatbotPage() {
             // --- Title ---
             pdf.setFontSize(20);
             pdf.setTextColor(80, 40, 120);
-            pdf.text("Knowledge Chatbot Report", pageWidth / 2, y, { align: "center" });
+            pdf.text("NESSCO AI-Powered Chatbot Report", pageWidth / 2, y, { align: "center" });
             y += 10;
 
             // --- Timestamp ---
