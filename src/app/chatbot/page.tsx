@@ -423,7 +423,7 @@ export default function ChatbotPage() {
             // Add page number on last page
             addPageNumber();
 
-            pdf.save(`knowledge-report-${new Date().getTime()}.pdf`);
+            pdf.save(`NESSCO-AI-Chatbot-report-${new Date().getTime()}.pdf`);
         } catch (err) {
             console.error("PDF generation error:", err);
             alert("Failed to generate PDF. Please try again.");
