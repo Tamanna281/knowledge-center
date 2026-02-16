@@ -18,7 +18,7 @@ let groqApiKeyCursor = 0;
 
 export interface LLMResponse {
     text: string;
-    provider: 'gemini' | 'groq' | 'ollama';
+    provider: 'gemini' | 'groq' | 'huggingface' | 'ollama';
     model: string;
     timestamp: string;
 }
@@ -68,6 +68,11 @@ const API_CONFIG = {
     groq: {
         baseUrl: 'https://api.groq.com/openai/v1/chat/completions',
         model: 'llama-3.3-70b-versatile', // Updated from decommissioned 3.1
+        temperature: 0.1,
+        maxOutputTokens: 2048,
+    },
+    huggingface: {
+        model: process.env.HF_MODEL || 'sarvamai/sarvam-m',
         temperature: 0.1,
         maxOutputTokens: 2048,
     },
@@ -216,6 +221,25 @@ export async function callGroq(prompt: string): Promise<string> {
 }
 
 /**
+ * Call Hugging Face API for content generation
+ * @param prompt The input prompt for content generation
+ * @throws Error if API call fails
+ */
+export async function callHuggingFace(prompt: string): Promise<string> {
+    try {
+        const { generateWithHuggingFace } = await import('./huggingface');
+        return await generateWithHuggingFace(prompt, {
+            model: API_CONFIG.huggingface.model,
+            temperature: API_CONFIG.huggingface.temperature,
+            maxNewTokens: API_CONFIG.huggingface.maxOutputTokens,
+        });
+    } catch (error: any) {
+        console.error(`[LLM Fallback] Hugging Face error - ${error.message}`);
+        throw error;
+    }
+}
+
+/**
  * Quick health check for Ollama service
  * @returns true if Ollama is responsive, false otherwise
  */
@@ -345,8 +369,8 @@ ${userQuestion}
 export async function generateLLMResponse(
     prompt: string,
     options?: {
-        skipProviders?: Array<'gemini' | 'groq' | 'ollama'>;
-        forceProvider?: 'gemini' | 'groq' | 'ollama';
+        skipProviders?: Array<'gemini' | 'groq' | 'huggingface' | 'ollama'>;
+        forceProvider?: 'gemini' | 'groq' | 'huggingface' | 'ollama';
     }
 ): Promise<LLMResponse> {
     const { skipProviders = [], forceProvider } = options || {};
@@ -361,7 +385,7 @@ export async function generateLLMResponse(
         if (cached) {
             return {
                 text: cached.text,
-                provider: cached.provider as 'gemini' | 'groq' | 'ollama',
+                provider: cached.provider as 'gemini' | 'groq' | 'huggingface' | 'ollama',
                 model: cached.model,
                 timestamp: cached.timestamp,
             };
@@ -370,7 +394,7 @@ export async function generateLLMResponse(
 
     const providers = forceProvider
         ? [forceProvider]
-        : (['gemini', 'groq', 'ollama'] as const)
+        : (['gemini', 'groq', 'huggingface', 'ollama'] as const)
             .filter(p => !skipProviders.includes(p));
 
     let lastError: Error | null = null;
@@ -391,6 +415,11 @@ export async function generateLLMResponse(
                 case 'groq':
                     text = await callGroq(prompt);
                     model = API_CONFIG.groq.model;
+                    break;
+
+                case 'huggingface':
+                    text = await callHuggingFace(prompt);
+                    model = API_CONFIG.huggingface.model;
                     break;
 
                 case 'ollama':
@@ -464,7 +493,7 @@ export async function generateLLMResponse(
  * @returns true if provider is healthy, false otherwise
  */
 export async function testProvider(
-    provider: 'gemini' | 'groq' | 'ollama'
+    provider: 'gemini' | 'groq' | 'huggingface' | 'ollama'
 ): Promise<boolean> {
     const testPrompt = 'Say "ok" in 5 words.';
 
@@ -475,6 +504,9 @@ export async function testProvider(
                 break;
             case 'groq':
                 await callGroq(testPrompt);
+                break;
+            case 'huggingface':
+                await callHuggingFace(testPrompt);
                 break;
             case 'ollama':
                 await callLocal(testPrompt);
@@ -492,17 +524,20 @@ export async function testProvider(
 export async function testAllProviders(): Promise<{
     gemini: boolean;
     groq: boolean;
+    huggingface: boolean;
     ollama: boolean;
 }> {
-    const [geminiHealth, groqHealth, ollamaHealth] = await Promise.all([
+    const [geminiHealth, groqHealth, huggingfaceHealth, ollamaHealth] = await Promise.all([
         testProvider('gemini'),
         testProvider('groq'),
+        testProvider('huggingface'),
         testProvider('ollama'),
     ]);
 
     return {
         gemini: geminiHealth,
         groq: groqHealth,
+        huggingface: huggingfaceHealth,
         ollama: ollamaHealth,
     };
 }

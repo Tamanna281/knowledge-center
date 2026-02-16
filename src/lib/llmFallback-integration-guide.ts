@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Use the fallback system - automatically tries Gemini → Groq → Ollama
+        // Use the fallback system - automatically tries Gemini → Groq → HuggingFace → Ollama
         const result = await generateLLMResponse(prompt);
 
         return NextResponse.json({
@@ -137,6 +137,7 @@ export async function getProviderHealth() {
         return {
             gemini: health.gemini ? 'healthy' : 'unavailable',
             groq: health.groq ? 'healthy' : 'unavailable',
+            huggingface: health.huggingface ? 'healthy' : 'unavailable',
             ollama: health.ollama ? 'healthy' : 'unavailable',
             timestamp: new Date().toISOString(),
         };
@@ -149,7 +150,7 @@ export async function getProviderHealth() {
 /**
  * Test a single provider
  */
-export async function testSingleProvider(provider: 'gemini' | 'groq' | 'ollama') {
+export async function testSingleProvider(provider: 'gemini' | 'groq' | 'huggingface' | 'ollama') {
     const isHealthy = await testProvider(provider);
     return {
         provider,
@@ -268,6 +269,7 @@ export class LLMService {
         const stats: Record<string, number> = {
             gemini: 0,
             groq: 0,
+            huggingface: 0,
             ollama: 0,
         };
 
@@ -342,7 +344,7 @@ async function generateWithTimeout(
  * 
  * 3. Create a type for the provider:
  * 
- *    type ProviderType = 'gemini' | 'groq' | 'ollama' | 'newProvider';
+ *    type ProviderType = 'gemini' | 'groq' | 'huggingface' | 'ollama' | 'newProvider';
  * 
  * 4. Add the provider case in generateLLMResponse:
  * 
@@ -355,5 +357,5 @@ async function generateWithTimeout(
  * 
  *    const providers = forceProvider
  *        ? [forceProvider]
- *        : (['gemini', 'groq', 'newProvider', 'ollama'] as const)
+ *        : (['gemini', 'groq', 'huggingface', 'ollama'] as const)
  */

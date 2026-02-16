@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 // GET: Retrieve chat history for a conversation
 export async function GET(req: NextRequest) {
@@ -79,25 +77,21 @@ export async function POST(req: NextRequest) {
             finalConversationId = newConversation.id;
         }
 
-        // Save all messages
-        const savedMessages = await Promise.all(
-            messages.map((msg: any) =>
-                prisma.chatMessage.create({
-                    data: {
-                        conversationId: finalConversationId,
-                        role: msg.role,
-                        content: msg.content,
-                        insightData: msg.insight
-                            ? JSON.stringify(msg.insight)
-                            : null,
-                    },
-                })
-            )
-        );
+        // Save all messages using createMany for efficiency and to reduce connection pressure
+        await prisma.chatMessage.createMany({
+            data: messages.map((msg: any) => ({
+                conversationId: finalConversationId,
+                role: msg.role,
+                content: msg.content,
+                insightData: msg.insight
+                    ? JSON.stringify(msg.insight)
+                    : null,
+            })),
+        });
 
         return NextResponse.json({
             conversationId: finalConversationId,
-            savedCount: savedMessages.length,
+            savedCount: messages.length,
         });
     } catch (error) {
         console.error("Error saving chat history:", error);
