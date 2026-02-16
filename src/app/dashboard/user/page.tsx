@@ -16,7 +16,7 @@ export default function UserDashboard() {
 
     useEffect(() => {
         api.get('/auth/me').then(res => setUser(res.data)).catch(() => router.push('/login'))
-        api.get('/user/profile').then(res => setProfile(res.data)).catch(() => { })
+        api.get('/auth/user/profile').then(res => setProfile(res.data)).catch(() => { })
     }, [router])
 
     const handleLogout = async () => {

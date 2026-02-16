@@ -23,7 +23,7 @@ function ResetContent() {
         setLoading(true)
         setError('')
         try {
-            await api.post('/reset-password', formData)
+            await api.post('/auth/reset-password', formData)
             router.push('/login?reset=true')
         } catch (err: unknown) {
             setError(getApiErrorMessage(err, 'Reset failed'))

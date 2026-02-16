@@ -20,7 +20,7 @@ function VerifyUsernameContent() {
         setLoading(true)
         setError('')
         try {
-            const res = await api.post('/verify-otp-username', { identifier, otp, type })
+            const res = await api.post('/auth/verify-otp-username', { identifier, otp, type })
             setUsername(res.data.username)
         } catch (err: unknown) {
             setError(getApiErrorMessage(err, 'Verification failed'))
