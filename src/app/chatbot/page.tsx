@@ -153,6 +153,7 @@ export default function ChatbotPage() {
 
         try {
             const { jsPDF } = await import("jspdf");
+            const html2canvas = (await import("html2canvas")).default;
 
             const pdf = new jsPDF({
                 orientation: "portrait",
@@ -310,6 +311,96 @@ export default function ChatbotPage() {
                         y += 5;
                         pdf.setFontSize(10);
                     }
+
+                    // --- Capture and Add Chart ---
+                    if (message.insight.chart) {
+                        const chartId = `chart-${message.id}`;
+                        const chartElement = document.getElementById(chartId);
+                        if (chartElement) {
+                            try {
+                                const canvas = await html2canvas(chartElement, {
+                                    scale: 2, // Better quality
+                                    useCORS: true,
+                                    logging: false,
+                                    backgroundColor: '#111827', // Fix: Use a standard hex background
+                                    onclone: (doc) => {
+                                        // ULTRA-AGGRESSIVE FIX for oklab/oklch parsing crash
+
+                                        // 1. Inject a "Safety Stylesheet" that forces standard colors everywhere in the clone
+                                        const style = doc.createElement('style');
+                                        style.innerHTML = `
+                                            * { 
+                                                color: #f1f5f9 !important; 
+                                                background-color: transparent !important;
+                                                border-color: #334155 !important;
+                                                background-image: none !important;
+                                                filter: none !important;
+                                                backdrop-filter: none !important;
+                                                box-shadow: none !important;
+                                                text-shadow: none !important;
+                                            }
+                                            svg, path, rect, circle { 
+                                                fill: #3b82f6 !important; 
+                                                stroke: #334155 !important;
+                                            }
+                                            h3 { color: #ffffff !important; }
+                                            .recharts-cartesian-grid-horizontal line,
+                                            .recharts-cartesian-grid-vertical line {
+                                                stroke: #334155 !important;
+                                                opacity: 0.2 !important;
+                                            }
+                                            .recharts-text { fill: #94a3b8 !important; }
+                                        `;
+                                        doc.head.appendChild(style);
+
+                                        // 2. Clear inline styles and classes that might contain "okl" values
+                                        const elements = doc.getElementsByTagName('*');
+                                        for (let i = 0; i < elements.length; i++) {
+                                            const el = elements[i] as HTMLElement;
+
+                                            // Wipe class names to prevent Tailwind 4's modern colors from being parsed
+                                            el.removeAttribute('class');
+
+                                            if (el.style) {
+                                                // Reset everything to force it to use our safety stylesheet
+                                                el.style.color = '';
+                                                el.style.backgroundColor = '';
+                                                el.style.borderColor = '';
+                                                el.style.fill = '';
+                                                el.style.stroke = '';
+                                            }
+                                        }
+
+                                        // 3. Re-apply essential layout and background only to the chart container
+                                        const clonedChart = doc.getElementById(chartId);
+                                        if (clonedChart) {
+                                            clonedChart.style.display = 'block';
+                                            clonedChart.style.backgroundColor = '#111827';
+                                            clonedChart.style.padding = '40px';
+                                            clonedChart.style.width = '1000px';
+                                            clonedChart.style.borderRadius = '16px';
+                                            clonedChart.style.margin = '0';
+
+                                            // Ensure charts are tall enough
+                                            const chartDiv = clonedChart.querySelector('div');
+                                            if (chartDiv) chartDiv.style.height = '400px';
+                                        }
+                                    }
+                                });
+                                const imgData = canvas.toDataURL("image/png");
+
+                                // Chart dimensions calculation
+                                const chartImgWidth = contentWidth - 10;
+                                const chartImgHeight = (canvas.height * chartImgWidth) / canvas.width;
+
+                                checkPageBreak(chartImgHeight + 10);
+                                pdf.addImage(imgData, "PNG", margin + 5, y, chartImgWidth, chartImgHeight);
+                                y += chartImgHeight + 10;
+                            } catch (chartErr) {
+                                console.error(`Error capturing chart ${chartId}:`, chartErr);
+                            }
+                        }
+                    }
                 } else {
                     // Plain text message
                     const contentLines = wrapText(message.content, contentWidth - 4);
@@ -322,7 +413,7 @@ export default function ChatbotPage() {
 
                 // Separator between messages
                 y += 3;
-                checkPageBreak(5);
+                checkPageBreak(10);
                 pdf.setDrawColor(220);
                 pdf.setLineWidth(0.2);
                 pdf.line(margin + 5, y, pageWidth - margin - 5, y);
@@ -332,7 +423,7 @@ export default function ChatbotPage() {
             // Add page number on last page
             addPageNumber();
 
-            pdf.save("knowledge-chatbot-report.pdf");
+            pdf.save(`knowledge-report-${new Date().getTime()}.pdf`);
         } catch (err) {
             console.error("PDF generation error:", err);
             alert("Failed to generate PDF. Please try again.");
@@ -534,7 +625,7 @@ export default function ChatbotPage() {
 
                                                         {/* Chart Rendering */}
                                                         {message.insight?.chart && (
-                                                            <div className="mt-4">
+                                                            <div className="mt-4" id={`chart-${message.id}`}>
                                                                 <ChartRenderer config={message.insight.chart} />
                                                             </div>
                                                         )}
