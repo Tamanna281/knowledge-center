@@ -36,12 +36,16 @@ export interface ChartConfig {
 
 interface ChartRendererProps {
     config: ChartConfig;
+    isPrinting?: boolean;
 }
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
-const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
+const ChartRenderer: React.FC<ChartRendererProps> = ({ config, isPrinting = false }) => {
     const { type, data, title, xAxisLabel, yAxisLabel, description } = config;
+
+    // Calculate animation state - disable if printing
+    const isAnimationActive = !isPrinting;
 
     const renderChart = () => {
         switch (type) {
@@ -60,7 +64,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                             tick={{ fill: '#cbd5e1', fontSize: 12 }}
                             label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft', fill: '#cbd5e1' } : undefined}
                         />
-                        <Tooltip
+                        {!isPrinting && <Tooltip
                             contentStyle={{
                                 backgroundColor: '#1e293b',
                                 border: '1px solid #334155',
@@ -68,12 +72,16 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                                 color: '#f1f5f9'
                             }}
                             cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }}
-                        />
+                        />}
                         <Legend
                             wrapperStyle={{ color: '#cbd5e1' }}
                             iconType="circle"
                         />
-                        <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                        <Bar
+                            dataKey="value"
+                            radius={[6, 6, 0, 0]}
+                            isAnimationActive={isAnimationActive}
+                        >
                             {data.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
@@ -95,14 +103,14 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                             tick={{ fill: '#cbd5e1', fontSize: 12 }}
                             label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft', fill: '#cbd5e1' } : undefined}
                         />
-                        <Tooltip
+                        {!isPrinting && <Tooltip
                             contentStyle={{
                                 backgroundColor: '#1e293b',
                                 border: '1px solid #334155',
                                 borderRadius: '8px',
                                 color: '#f1f5f9'
                             }}
-                        />
+                        />}
                         <Legend
                             wrapperStyle={{ color: '#cbd5e1' }}
                             iconType="line"
@@ -113,7 +121,8 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                             stroke="#3b82f6"
                             strokeWidth={3}
                             dot={{ r: 5, fill: '#3b82f6', strokeWidth: 2, stroke: '#1e40af' }}
-                            activeDot={{ r: 7, fill: '#60a5fa' }}
+                            activeDot={isPrinting ? false : { r: 7, fill: '#60a5fa' }}
+                            isAnimationActive={isAnimationActive}
                         />
                     </LineChart>
                 );
@@ -132,14 +141,14 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                             tick={{ fill: '#cbd5e1', fontSize: 12 }}
                             label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft', fill: '#cbd5e1' } : undefined}
                         />
-                        <Tooltip
+                        {!isPrinting && <Tooltip
                             contentStyle={{
                                 backgroundColor: '#1e293b',
                                 border: '1px solid #334155',
                                 borderRadius: '8px',
                                 color: '#f1f5f9'
                             }}
-                        />
+                        />}
                         <Legend
                             wrapperStyle={{ color: '#cbd5e1' }}
                             iconType="rect"
@@ -151,6 +160,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                             strokeWidth={2}
                             fill="#3b82f6"
                             fillOpacity={0.3}
+                            isAnimationActive={isAnimationActive}
                         />
                     </AreaChart>
                 );
@@ -166,19 +176,20 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                             paddingAngle={3}
                             dataKey="value"
                             label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
+                            isAnimationActive={isAnimationActive}
                         >
                             {data.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                         </Pie>
-                        <Tooltip
+                        {!isPrinting && <Tooltip
                             contentStyle={{
                                 backgroundColor: '#1e293b',
                                 border: '1px solid #334155',
                                 borderRadius: '8px',
                                 color: '#f1f5f9'
                             }}
-                        />
+                        />}
                         <Legend
                             wrapperStyle={{ color: '#cbd5e1' }}
                             iconType="circle"
