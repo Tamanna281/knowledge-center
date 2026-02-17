@@ -109,13 +109,13 @@ export default function OrgNode({
     }
   }
 
-  const editInputStyle = "w-full p-1.5 border border-gray-300 rounded text-sm bg-white text-gray-900 font-medium placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
+  const editInputStyle = "w-full p-1.5 border border-white/20 rounded text-sm bg-black/40 text-white font-medium placeholder:text-gray-500 focus:ring-2 focus:ring-purple-500 outline-none shadow-sm"
 
   return (
     <div className={`relative pl-6 transition-opacity duration-300 ${isDimmed ? 'opacity-30' : 'opacity-100'}`}>
-      {!isLast && <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-300 -translate-x-1/2" />}
-      <div className="absolute left-0 top-6 w-6 h-px bg-gray-300 -translate-x-1/2" />
-      <div className="absolute left-0 top-0 h-6 w-px bg-gray-300 -translate-x-1/2" />
+      {!isLast && <div className="absolute left-0 top-0 bottom-0 w-px bg-white/10 -translate-x-1/2" />}
+      <div className="absolute left-0 top-6 w-6 h-px bg-white/10 -translate-x-1/2" />
+      <div className="absolute left-0 top-0 h-6 w-px bg-white/10 -translate-x-1/2" />
 
       <div className="py-2">
         <div className="flex items-center gap-3">
@@ -125,9 +125,9 @@ export default function OrgNode({
               ref={setDragRef}
               style={style}
               {...attributes}
-              className={`group flex items-center gap-3 p-3 rounded-lg shadow-sm border w-fit min-w-[320px] relative z-10 
-                ${isDirectMatch ? 'bg-yellow-50 border-yellow-400 ring-2 ring-yellow-200' : 'bg-white border-gray-200'}
-                ${isOver ? '!border-green-500 !bg-green-50' : ''}
+              className={`group flex items-center gap-3 p-3 rounded-lg shadow-xl border w-fit min-w-[320px] relative z-10 backdrop-blur-md
+                ${isDirectMatch ? 'bg-purple-500/20 border-purple-400 ring-2 ring-purple-500/20' : 'bg-white/5 border-white/10'}
+                ${isOver ? '!border-emerald-500 !bg-emerald-500/10' : ''}
               `}
             >
               {!isAdmin && (
@@ -141,12 +141,12 @@ export default function OrgNode({
                 onClick={() => setIsOpen(!isOpen)}
                 disabled={children.length === 0}
                 onPointerDown={(e) => e.stopPropagation()}
-                className={`p-1 rounded transition-colors ${children.length > 0 ? 'hover:bg-gray-100 text-gray-500' : 'invisible'}`}
+                className={`p-1 rounded transition-colors ${children.length > 0 ? 'hover:bg-white/10 text-slate-400' : 'invisible'}`}
               >
                 {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               </button>
 
-              {isNodeAdmin ? <Shield size={18} className="text-purple-600" /> : <User size={18} className="text-blue-600" />}
+              {isNodeAdmin ? <Shield size={18} className="text-purple-400" /> : <User size={18} className="text-blue-400" />}
 
               <div className="flex-grow">
                 {isEditing ? (
@@ -169,10 +169,10 @@ export default function OrgNode({
                   </form>
                 ) : (
                   <div className="flex flex-col">
-                    <span className={`text-sm ${isDirectMatch ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'}`}>
+                    <span className={`text-sm ${isDirectMatch ? 'font-bold text-white' : 'font-semibold text-slate-200'}`}>
                       {node.name}
                     </span>
-                    <span className="text-[10px] text-gray-400 uppercase tracking-wide">{node.role.name}</span>
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wide">{node.role.name}</span>
                   </div>
                 )}
               </div>
@@ -180,7 +180,7 @@ export default function OrgNode({
               {/* ACTIONS: Protect ROOT Admin and all ADMINs, check privileges AND subtree */}
               {!isEditing && !isNodeAdmin && node.email !== 'bhavya.jn2804@gmail.com' && canDeleteUser && (
                 <div className="flex gap-1 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => e.stopPropagation()}>
-                  <button onClick={() => setIsEditing(true)} className="p-2 text-gray-400 hover:text-blue-600">
+                  <button onClick={() => setIsEditing(true)} className="p-2 text-slate-400 hover:text-blue-400">
                     <Pencil size={14} />
                   </button>
                   <button onClick={handleDelete} className="p-2 text-red-500 hover:text-red-700 transition-colors">
@@ -195,7 +195,7 @@ export default function OrgNode({
           {canAddUser && (
             <button
               onClick={() => setShowAddForm(!showAddForm)}
-              className={`p-2 rounded-full transition-colors relative z-10 ${showAddForm ? 'bg-gray-200 text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-600'}`}
+              className={`p-2 rounded-full transition-colors relative z-10 ${showAddForm ? 'bg-white/20 text-white' : 'bg-white/5 text-slate-400 hover:bg-blue-500/20 hover:text-blue-400'}`}
             >
               {showAddForm ? <X size={14} /> : <Plus size={14} />}
             </button>
@@ -203,7 +203,7 @@ export default function OrgNode({
         </div>
 
         {showAddForm && (
-          <div className="ml-10 mt-2 max-w-xs border-l-2 border-dashed border-gray-300 pl-4">
+          <div className="ml-10 mt-2 max-w-xs border-l-2 border-dashed border-white/20 pl-4">
             {/* 3. Pass roles to the Form */}
             <AddUserForm managerId={node.id} existingRoles={existingRoles} />
           </div>

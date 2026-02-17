@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
-import { Database, Search, ArrowLeft, Tag, FileText, Eye, FileSpreadsheet, X, RefreshCw, Trash2 } from 'lucide-react';
+import { Database, Search, Trash2, X, RefreshCw, FileSpreadsheet, FileText, Tag, Eye } from 'lucide-react';
 import { format } from 'date-fns';
-import Link from 'next/link';
+import axios from 'axios';
+import BackButton from './BackButton';
 import { useRouter } from 'next/navigation';
 
 interface DatabaseClientViewProps {
@@ -161,12 +162,9 @@ export default function DatabaseClientView({ data }: DatabaseClientViewProps) {
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
-                            <Link
-                                href="/"
-                                className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-300 transition-colors hover:text-white"
-                            >
-                                <ArrowLeft className="h-4 w-4" /> Back to Home
-                            </Link>
+                            <div className="mb-4">
+                                <BackButton />
+                            </div>
                             <div className="flex items-start gap-4">
                                 <div className="rounded-full bg-cyan-500/20 p-3 text-cyan-400">
                                     <Database className="h-6 w-6" />
@@ -300,8 +298,8 @@ export default function DatabaseClientView({ data }: DatabaseClientViewProps) {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${item.sourceTable === 'MachineProduct'
-                                                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                                        : 'bg-slate-500/10 text-slate-400 border border-slate-500/10'
+                                                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                                    : 'bg-slate-500/10 text-slate-400 border border-slate-500/10'
                                                     }`}>
                                                     {item.sourceTable === 'MachineProduct' ? 'Product Catalog' : 'Knowledge Base'}
                                                 </span>

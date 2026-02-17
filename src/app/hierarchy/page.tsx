@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Loader2, ShieldX } from 'lucide-react'
 import axios from 'axios'
+import BackButton from '@/components/BackButton'
 import TreeContext from '@/components/hierarchy/TreeContext'
 import OrgNode from '@/components/hierarchy/OrgNode'
 import AddUserForm from '@/components/hierarchy/AddUserForm'
@@ -95,13 +96,7 @@ export default function HierarchyPage() {
                 {/* Header */}
                 <div className="mb-8 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => router.push('/')}
-                            className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-white transition-all hover:bg-white/20"
-                        >
-                            <ArrowLeft className="h-5 w-5" />
-                            Back to Home
-                        </button>
+                        <BackButton />
                         <h1 className="text-4xl font-bold text-white">Organization Hierarchy</h1>
                     </div>
                 </div>

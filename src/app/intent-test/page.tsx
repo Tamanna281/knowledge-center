@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { Send, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import BackButton from '@/components/BackButton';
 
 interface Intent {
     table?: string;
@@ -65,13 +66,16 @@ export default function IntentTestPage() {
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-white mb-2">
-                        🧠 Intent Extraction Engine
-                    </h1>
-                    <p className="text-slate-300">
-                        Test the analytics chatbot intent extraction system
-                    </p>
+                <div className="mb-8 flex items-center justify-between">
+                    <BackButton />
+                    <div className="text-right">
+                        <h1 className="text-4xl font-bold text-white mb-2">
+                            🧠 Intent Extraction Engine
+                        </h1>
+                        <p className="text-slate-300 text-sm">
+                            Test the analytics chatbot intent extraction system
+                        </p>
+                    </div>
                 </div>
 
                 {/* Main Card */}

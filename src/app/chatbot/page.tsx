@@ -5,6 +5,7 @@ import { Bot, Send, User, Download, Loader2 } from "lucide-react";
 import { chatApi } from "@/lib/api";
 import ChartRenderer, { ChartConfig } from "@/components/ChartRenderer";
 import { captureChartElement, calculatePdfImageSize } from "@/lib/chart-utils";
+import BackButton from "@/components/BackButton";
 
 type Message = {
     id: string;
@@ -418,9 +419,12 @@ export default function ChatbotPage() {
             <div className="flex flex-col h-full w-full max-w-full">
                 <header className="flex items-center justify-between px-4 sm:px-6 py-4 shrink-0">
                     <div className="flex-1">
-                        <h1 className="mb-2 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl sm:text-4xl md:text-5xl font-bold text-transparent">
-                            Knowledge Chatbot
-                        </h1>
+                        <div className="flex items-center gap-4 mb-2">
+                            <BackButton />
+                            <h1 className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-3xl sm:text-4xl md:text-5xl font-bold text-transparent mb-0">
+                                Knowledge Chatbot
+                            </h1>
+                        </div>
                         <p className="text-sm sm:text-base md:text-lg text-slate-300">
                             Ask questions about your imported data and get instant answers.
                         </p>

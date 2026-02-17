@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { Upload, FileSpreadsheet, FileText, CheckCircle2, AlertCircle, Loader2, X, Database, Settings } from 'lucide-react';
 import { chatApi } from '@/lib/api';
+import BackButton from '@/components/BackButton';
 
 interface UploadStatus {
     status: 'idle' | 'uploading' | 'success' | 'error';
@@ -116,11 +117,14 @@ export default function ImportPage() {
         <div className="min-h-screen bg-slate-950 text-slate-100 p-6 selection:bg-purple-500/30">
             <div className="mx-auto max-w-5xl">
                 {/* Header */}
-                <div className="mb-8 text-center">
-                    <h1 className="mb-3 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-5xl font-bold text-transparent">
-                        Data Import Center
-                    </h1>
-                    <p className="text-lg text-slate-400 max-w-2xl mx-auto">
+                <div className="mb-8">
+                    <div className="flex items-center gap-4 mb-3 justify-center">
+                        <BackButton />
+                        <h1 className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-5xl font-bold text-transparent mb-0">
+                            Data Import Center
+                        </h1>
+                    </div>
+                    <p className="text-lg text-slate-400 max-w-2xl mx-auto text-center">
                         Upload documents or product data to expand the knowledge base
                     </p>
                 </div>
@@ -131,8 +135,8 @@ export default function ImportPage() {
                         <button
                             onClick={() => setImportType('knowledge-base')}
                             className={`flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-medium transition-all ${importType === 'knowledge-base'
-                                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/25'
-                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/25'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5'
                                 }`}
                         >
                             <Database className="h-4 w-4" />
@@ -141,8 +145,8 @@ export default function ImportPage() {
                         <button
                             onClick={() => setImportType('product-catalog')}
                             className={`flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-medium transition-all ${importType === 'product-catalog'
-                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5'
                                 }`}
                         >
                             <Settings className="h-4 w-4" />
@@ -203,8 +207,8 @@ export default function ImportPage() {
                                 <label htmlFor="file-upload" className="cursor-pointer block h-full w-full">
                                     <div className="flex flex-col items-center gap-4">
                                         <div className={`rounded-full p-5 shadow-lg transition-colors duration-500 ${importType === 'product-catalog'
-                                                ? 'bg-gradient-to-br from-blue-500 to-cyan-600 shadow-blue-500/20'
-                                                : 'bg-gradient-to-br from-purple-500 to-pink-600 shadow-purple-500/20'
+                                            ? 'bg-gradient-to-br from-blue-500 to-cyan-600 shadow-blue-500/20'
+                                            : 'bg-gradient-to-br from-purple-500 to-pink-600 shadow-purple-500/20'
                                             }`}>
                                             <Upload className="h-10 w-10 text-white" />
                                         </div>
@@ -304,8 +308,8 @@ export default function ImportPage() {
                                 onClick={handleUpload}
                                 disabled={files.length === 0 || uploadStatus.status === 'uploading'}
                                 className={`w-full relative overflow-hidden rounded-xl bg-gradient-to-r px-6 py-4 font-semibold text-white shadow-lg transition-all duration-300 hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50 disabled:scale-100 ${importType === 'product-catalog'
-                                        ? 'from-blue-600 to-cyan-600 hover:shadow-blue-500/25'
-                                        : 'from-purple-600 to-pink-600 hover:shadow-purple-500/25'
+                                    ? 'from-blue-600 to-cyan-600 hover:shadow-blue-500/25'
+                                    : 'from-purple-600 to-pink-600 hover:shadow-purple-500/25'
                                     }`}
                             >
                                 {uploadStatus.status === 'uploading' ? (
